@@ -1,78 +1,42 @@
-/***************************************************************/
-#include "stm32f10x.h"
-/***************************************************************/
 #ifndef __NRF24L01_H
-#define __NRF24L01_H 
-/***************************************************************/
+#define __NRF24L01_H
 
+#include "stm32f10x.h"
 
-//NRF24L01·¢ËÍ½ÓÊÕÊı¾İ¿í¶È¶¨Òå
-#define TX_ADR_WIDTH    5                               //5×Ö½ÚµÄµØÖ·¿í¶È
-#define RX_ADR_WIDTH    5                               //5×Ö½ÚµÄµØÖ·¿í¶È
-#define TX_PLOAD_WIDTH  32                              //20×Ö½ÚµÄÓÃ»§Êı¾İ¿í¶È
-#define RX_PLOAD_WIDTH  32                              //20×Ö½ÚµÄÓÃ»§Êı¾İ¿í¶È
+/* åœ°å€ä¸è½½è·å®½åº¦ */
+#define TX_ADR_WIDTH   5  // 5 å­—èŠ‚åœ°å€
+#define RX_ADR_WIDTH   5
+#define TX_PLOAD_WIDTH 32 // 32 å­—èŠ‚ç”¨æˆ·æ•°æ®
 
-/****************************************************************************************************/
-//NRF24L01¼Ä´æÆ÷²Ù×÷ÃüÁî
-#define SPI_READ_REG    0x00  //¶ÁÅäÖÃ¼Ä´æÆ÷,µÍ5Î»Îª¼Ä´æÆ÷µØÖ·
-#define SPI_WRITE_REG   0x20  //Ğ´ÅäÖÃ¼Ä´æÆ÷,µÍ5Î»Îª¼Ä´æÆ÷µØÖ·
-#define RD_RX_PLOAD     0x61  //¶ÁRXÓĞĞ§Êı¾İ,1~32×Ö½Ú
-#define WR_TX_PLOAD     0xA0  //Ğ´TXÓĞĞ§Êı¾İ,1~32×Ö½Ú
-#define FLUSH_TX        0xE1  //Çå³ıTX FIFO¼Ä´æÆ÷.·¢ÉäÄ£Ê½ÏÂÓÃ
-#define FLUSH_RX        0xE2  //Çå³ıRX FIFO¼Ä´æÆ÷.½ÓÊÕÄ£Ê½ÏÂÓÃ
-#define REUSE_TX_PL     0xE3  //ÖØĞÂÊ¹ÓÃÉÏÒ»°üÊı¾İ,CEÎª¸ß,Êı¾İ°ü±»²»¶Ï·¢ËÍ.
-#define NOP             0xFF  //¿Õ²Ù×÷,¿ÉÒÔÓÃÀ´¶Á×´Ì¬¼Ä´æÆ÷	 
-//SPI(NRF24L01)¼Ä´æÆ÷µØÖ·
-#define NCONFIG          0x00  //ÅäÖÃ¼Ä´æÆ÷µØÖ·;bit0:1½ÓÊÕÄ£Ê½,0·¢ÉäÄ£Ê½;bit1:µçÑ¡Ôñ;bit2:CRCÄ£Ê½;bit3:CRCÊ¹ÄÜ;
-                              //bit4:ÖĞ¶ÏMAX_RT(´ïµ½×î´óÖØ·¢´ÎÊıÖĞ¶Ï)Ê¹ÄÜ;bit5:ÖĞ¶ÏTX_DSÊ¹ÄÜ;bit6:ÖĞ¶ÏRX_DRÊ¹ÄÜ
-#define EN_AA           0x01  //Ê¹ÄÜ×Ô¶¯Ó¦´ğ¹¦ÄÜ  bit0~5,¶ÔÓ¦Í¨µÀ0~5
-#define EN_RXADDR       0x02  //½ÓÊÕµØÖ·ÔÊĞí,bit0~5,¶ÔÓ¦Í¨µÀ0~5
-#define SETUP_AW        0x03  //ÉèÖÃµØÖ·¿í¶È(ËùÓĞÊı¾İÍ¨µÀ):bit1,0:00,3×Ö½Ú;01,4×Ö½Ú;02,5×Ö½Ú;
-#define SETUP_RETR      0x04  //½¨Á¢×Ô¶¯ÖØ·¢;bit3:0,×Ô¶¯ÖØ·¢¼ÆÊıÆ÷;bit7:4,×Ô¶¯ÖØ·¢ÑÓÊ± 250*x+86us
-#define RF_CH           0x05  //RFÍ¨µÀ,bit6:0,¹¤×÷Í¨µÀÆµÂÊ;
-#define RF_SETUP        0x06  //RF¼Ä´æÆ÷;bit3:´«ÊäËÙÂÊ(0:1Mbps,1:2Mbps);bit2:1,·¢Éä¹¦ÂÊ;bit0:µÍÔëÉù·Å´óÆ÷ÔöÒæ
-#define STATUS          0x07  //×´Ì¬¼Ä´æÆ÷;bit0:TX FIFOÂú±êÖ¾;bit3:1,½ÓÊÕÊı¾İÍ¨µÀºÅ(×î´ó:6);bit4,´ïµ½×î¶à´ÎÖØ·¢
-                              //bit5:Êı¾İ·¢ËÍÍê³ÉÖĞ¶Ï;bit6:½ÓÊÕÊı¾İÖĞ¶Ï;
-#define MAX_TX  	    0x10  //´ïµ½×î´ó·¢ËÍ´ÎÊıÖĞ¶Ï
-#define TX_OK       	0x20  //TX·¢ËÍÍê³ÉÖĞ¶Ï
-#define RX_OK   	    0x40  //½ÓÊÕµ½Êı¾İÖĞ¶Ï
+/* NRF24L01 æŒ‡ä»¤ */
+#define SPI_WRITE_REG 0x20 // å†™é…ç½®å¯„å­˜å™¨
+#define WR_TX_PLOAD   0xA0 // å†™ TX æœ‰æ•ˆæ•°æ®
+#define FLUSH_TX      0xE1 // æ¸… TX FIFO
 
-#define OBSERVE_TX      0x08  //·¢ËÍ¼ì²â¼Ä´æÆ÷,bit7:4,Êı¾İ°ü¶ªÊ§¼ÆÊıÆ÷;bit3:0,ÖØ·¢¼ÆÊıÆ÷
-#define CD              0x09  //ÔØ²¨¼ì²â¼Ä´æÆ÷,bit0,ÔØ²¨¼ì²â;
-#define RX_ADDR_P0      0x0A  //Êı¾İÍ¨µÀ0½ÓÊÕµØÖ·,×î´ó³¤¶È5¸ö×Ö½Ú,µÍ×Ö½ÚÔÚÇ°
-#define RX_ADDR_P1      0x0B  //Êı¾İÍ¨µÀ1½ÓÊÕµØÖ·,×î´ó³¤¶È5¸ö×Ö½Ú,µÍ×Ö½ÚÔÚÇ°
-#define RX_ADDR_P2      0x0C  //Êı¾İÍ¨µÀ2½ÓÊÕµØÖ·,×îµÍ×Ö½Ú¿ÉÉèÖÃ,¸ß×Ö½Ú,±ØĞëÍ¬RX_ADDR_P1[39:8]ÏàµÈ;
-#define RX_ADDR_P3      0x0D  //Êı¾İÍ¨µÀ3½ÓÊÕµØÖ·,×îµÍ×Ö½Ú¿ÉÉèÖÃ,¸ß×Ö½Ú,±ØĞëÍ¬RX_ADDR_P1[39:8]ÏàµÈ;
-#define RX_ADDR_P4      0x0E  //Êı¾İÍ¨µÀ4½ÓÊÕµØÖ·,×îµÍ×Ö½Ú¿ÉÉèÖÃ,¸ß×Ö½Ú,±ØĞëÍ¬RX_ADDR_P1[39:8]ÏàµÈ;
-#define RX_ADDR_P5      0x0F  //Êı¾İÍ¨µÀ5½ÓÊÕµØÖ·,×îµÍ×Ö½Ú¿ÉÉèÖÃ,¸ß×Ö½Ú,±ØĞëÍ¬RX_ADDR_P1[39:8]ÏàµÈ;
-#define TX_ADDR         0x10  //·¢ËÍµØÖ·(µÍ×Ö½ÚÔÚÇ°),ShockBurstTMÄ£Ê½ÏÂ,RX_ADDR_P0Óë´ËµØÖ·ÏàµÈ
-#define RX_PW_P0        0x11  //½ÓÊÕÊı¾İÍ¨µÀ0ÓĞĞ§Êı¾İ¿í¶È(1~32×Ö½Ú),ÉèÖÃÎª0Ôò·Ç·¨
-#define RX_PW_P1        0x12  //½ÓÊÕÊı¾İÍ¨µÀ1ÓĞĞ§Êı¾İ¿í¶È(1~32×Ö½Ú),ÉèÖÃÎª0Ôò·Ç·¨
-#define RX_PW_P2        0x13  //½ÓÊÕÊı¾İÍ¨µÀ2ÓĞĞ§Êı¾İ¿í¶È(1~32×Ö½Ú),ÉèÖÃÎª0Ôò·Ç·¨
-#define RX_PW_P3        0x14  //½ÓÊÕÊı¾İÍ¨µÀ3ÓĞĞ§Êı¾İ¿í¶È(1~32×Ö½Ú),ÉèÖÃÎª0Ôò·Ç·¨
-#define RX_PW_P4        0x15  //½ÓÊÕÊı¾İÍ¨µÀ4ÓĞĞ§Êı¾İ¿í¶È(1~32×Ö½Ú),ÉèÖÃÎª0Ôò·Ç·¨
-#define RX_PW_P5        0x16  //½ÓÊÕÊı¾İÍ¨µÀ5ÓĞĞ§Êı¾İ¿í¶È(1~32×Ö½Ú),ÉèÖÃÎª0Ôò·Ç·¨
-#define FIFO_STATUS     0x17  //FIFO×´Ì¬¼Ä´æÆ÷;bit0,RX FIFO¼Ä´æÆ÷¿Õ±êÖ¾;bit1,RX FIFOÂú±êÖ¾;bit2,3,±£Áô
-                              //bit4,TX FIFO¿Õ±êÖ¾;bit5,TX FIFOÂú±êÖ¾;bit6,1,Ñ­»··¢ËÍÉÏÒ»Êı¾İ°ü.0,²»Ñ­»·;
-/**********************************************************************************************************/
+/* NRF24L01 å¯„å­˜å™¨åœ°å€ */
+#define NCONFIG    0x00 // bit0: 1=PRX,0=PTX; bit1: ä¸Šç”µé€‰æ‹©; bit3: CRCä½¿èƒ½; bit4~6: ä¸­æ–­ä½¿èƒ½
+#define EN_AA      0x01 // è‡ªåŠ¨åº”ç­”ä½¿èƒ½ï¼Œbit0~5 å¯¹åº”é€šé“ 0~5
+#define EN_RXADDR  0x02 // æ¥æ”¶åœ°å€ä½¿èƒ½ï¼Œbit0~5 å¯¹åº”é€šé“ 0~5
+#define SETUP_RETR 0x04 // è‡ªåŠ¨é‡å‘ï¼šbit7:4 å»¶æ—¶ï¼Œbit3:0 æ¬¡æ•°
+#define RF_CH      0x05 // RF é€šé“
+#define RF_SETUP   0x06 // bit3: é€Ÿç‡(0=1M,1=2M); bit2: 1=æœ€å¤§åŠŸç‡
+#define STATUS     0x07 // bit4: MAX_RT; bit5: TX_DS; bit6: RX_DR
+#define RX_ADDR_P0 0x0A // é€šé“ 0 æ¥æ”¶åœ°å€
+#define TX_ADDR     0x10 // å‘é€åœ°å€
 
-//NRF24L01 Çı¶¯º¯Êı 
-void NRF24L01_Configuration(void);                                //NRF24l01³õÊ¼»¯
-void RX_Mode(void);                                      //ÅäÖÃÎª½ÓÊÕÄ£Ê½
-void TX_Mode(void);                                      //ÅäÖÃÎª·¢ËÍÄ£Ê½
-u8 NRF24L01_Write_Buf(u8 regaddr, u8 *pBuf, u8 datalen); //Ğ´Êı¾İÇø
-u8 NRF24L01_Read_Buf(u8 regaddr, u8 *pBuf, u8 datalen);  //¶ÁÊı¾İÇø		  
-u8 NRF24L01_Read_Reg(u8 regaddr);		                 //¶Á¼Ä´æÆ÷
-u8 NRF24L01_Write_Reg(u8 regaddr, u8 data);              //Ğ´¼Ä´æÆ÷
-u8 NRF24L01_Check(void);                                 //¼ì²éNRF24L01ÊÇ·ñÔÚÎ»
-u8 NRF24L01_TxPacket(u8 *txbuf);                         //·¢ËÍÒ»¸ö°üµÄÊı¾İ
-u8 NRF24L01_RxPacket(u8 *rxbuf);                         //½ÓÊÕÒ»¸ö°üµÄÊı¾İ
-	 
+/* çŠ¶æ€ä½ */
+#define MAX_TX 0x10 // è¾¾åˆ°æœ€å¤§é‡å‘æ¬¡æ•°
+#define TX_OK  0x20 // å‘é€å®Œæˆ
 
-
-
-extern void NRF24L01_init(void);
-
+/* å‡½æ•°å£°æ˜ */
+void NRF24L01_Configuration(void);
+void TX_Mode(void);
+u8 NRF24L01_Write_Buf(u8 regaddr, u8 *pBuf, u8 datalen);
+u8 NRF24L01_Read_Buf(u8 regaddr, u8 *pBuf, u8 datalen);
+u8 NRF24L01_Read_Reg(u8 regaddr);
+u8 NRF24L01_Write_Reg(u8 regaddr, u8 data);
+u8 NRF24L01_Check(void);
+u8 NRF24L01_TxPacket(u8 *txbuf);
+void NRF24L01_init(void);
 
 #endif
-

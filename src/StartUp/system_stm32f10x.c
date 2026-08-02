@@ -194,104 +194,11 @@ __I uint8_t AHBPrescTable[16] = {0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 6, 7, 8, 9}
   * @param  None
   * @retval None
   */
-//void SystemInit (void)
-//{
-//  /* Reset the RCC clock configuration to the default reset state(for debug purpose) */
-//  /* Set HSION bit */
-//  RCC->CR |= (uint32_t)0x00000001;
-
-//  /* Reset SW, HPRE, PPRE1, PPRE2, ADCPRE and MCO bits */
-//#ifndef STM32F10X_CL
-//  RCC->CFGR &= (uint32_t)0xF8FF0000;
-//#else
-//  RCC->CFGR &= (uint32_t)0xF0FF0000;
-//#endif /* STM32F10X_CL */   
-//  
-//  /* Reset HSEON, CSSON and PLLON bits */
-//  RCC->CR &= (uint32_t)0xFEF6FFFF;
-
-//  /* Reset HSEBYP bit */
-//  RCC->CR &= (uint32_t)0xFFFBFFFF;
-
-//  /* Reset PLLSRC, PLLXTPRE, PLLMUL and USBPRE/OTGFSPRE bits */
-//  RCC->CFGR &= (uint32_t)0xFF80FFFF;
-
-//#ifdef STM32F10X_CL
-//  /* Reset PLL2ON and PLL3ON bits */
-//  RCC->CR &= (uint32_t)0xEBFFFFFF;
-
-//  /* Disable all interrupts and clear pending bits  */
-//  RCC->CIR = 0x00FF0000;
-
-//  /* Reset CFGR2 register */
-//  RCC->CFGR2 = 0x00000000;
-//#elif defined (STM32F10X_LD_VL) || defined (STM32F10X_MD_VL) || (defined STM32F10X_HD_VL)
-//  /* Disable all interrupts and clear pending bits  */
-//  RCC->CIR = 0x009F0000;
-
-//  /* Reset CFGR2 register */
-//  RCC->CFGR2 = 0x00000000;      
-//#else
-//  /* Disable all interrupts and clear pending bits  */
-//  RCC->CIR = 0x009F0000;
-//#endif /* STM32F10X_CL */
-//    
-//#if defined (STM32F10X_HD) || (defined STM32F10X_XL) || (defined STM32F10X_HD_VL)
-//  #ifdef DATA_IN_ExtSRAM
-//    SystemInit_ExtMemCtl(); 
-//  #endif /* DATA_IN_ExtSRAM */
-//#endif 
-
-//  /* Configure the System clock frequency, HCLK, PCLK2 and PCLK1 prescalers */
-//  /* Configure the Flash Latency cycles and enable prefetch buffer */
-//  SetSysClock();
-
-//#ifdef VECT_TAB_SRAM
-//  SCB->VTOR = SRAM_BASE | VECT_TAB_OFFSET; /* Vector Table Relocation in Internal SRAM. */
-//#else
-//  SCB->VTOR = FLASH_BASE | VECT_TAB_OFFSET; /* Vector Table Relocation in Internal FLASH. */
-//#endif 
-//}
-// RCC_ClocksTypeDef RCC_ClockFreq;
-//RCC_GetClocksFreq(&RCC_ClockFreq);//�鿴Ƶ��ֵ
 void SystemInit(void)
 {
-									 /* ����HSI ���ڲ�����ʱ�� */
-	RCC->CR |= (uint32_t)0x00000001; 
-
-//	/*ѡ��HSIΪPLL��ʱ��ԴHSI����2��Ƶ��PLL*/
-//	RCC->CFGR |= (uint32_t)RCC_CFGR_PLLSRC_HSI_Div2; 
-
-//					 
-//	/*PLLCLK=8/2*12=48MHz   ���ñ�Ƶ�õ�ʱ��ԴPLL��Ƶ��*/
-//	RCC->CFGR |= (uint32_t)RCC_CFGR_PLLMULL12;
-
-//	/* PLL����Ƶ���  */
-//	RCC->CFGR |= (uint32_t)RCC_CFGR_HPRE_DIV1;
-////	RCC_HCLKConfig(RCC_SYSCLK_Div1);						//����AHB�豸ʱ��Ϊϵͳʱ��1��Ƶ 
-//	/* ʹ�� PLLʱ�� */
-//	RCC->CR |= RCC_CR_PLLON;
-
-//	/* �ȴ�PLLʱ�Ӿ���*/
-//	while((RCC->CR & RCC_CR_PLLRDY) == 0)
-//	{
-//	}
-
-
-//	/* ѡ��PLLΪϵͳʱ�ӵ�ʱ��Դ */
-//	RCC->CFGR &= (uint32_t)((uint32_t)~(RCC_CFGR_SW));
-//	RCC->CFGR |= (uint32_t)RCC_CFGR_SW_PLL;    
-
-//	/* �ȵ�PLL��Ϊϵͳʱ�ӵ�ʱ��Դ*/
-//	while ((RCC->CFGR & (uint32_t)RCC_CFGR_SWS) != (uint32_t)0x08)
-//	{
-
-//  }
-	  /*!< Configure the System clock frequency, HCLK, PCLK2 and PCLK1 prescalers */
-  /*!< Configure the Flash Latency cycles and enable prefetch buffer */
- // SetSysClock();
+    /* 使能 HSI 内部时钟，具体 PLL 48MHz 配置见 core/init.c 的 RCC_Configuration() */
+    RCC->CR |= (uint32_t)0x00000001;
 }
-
 
 /**
   * @brief  Update SystemCoreClock variable according to Clock Register Values.
@@ -779,15 +686,6 @@ static void SetSysClockTo36(void)
          configuration. User can add here some code to deal with this error */
   } 
 }
-#elif defined SYSCLK_FREQ_48MHz
-/**
-  * @brief  Sets System clock frequency to 48MHz and configure HCLK, PCLK2 
-  *         and PCLK1 prescalers. 
-  * @note   This function should be used only after reset.
-  * @param  None
-  * @retval None
-  */
-
 #elif defined SYSCLK_FREQ_56MHz
 /**
   * @brief  Sets System clock frequency to 56MHz and configure HCLK, PCLK2 

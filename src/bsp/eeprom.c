@@ -1,86 +1,39 @@
+/*******************************************************************
+ * AT24C02 EEPROMï¼ˆè½¯ä»¶ I2Cï¼ŒPB6/PB7ï¼Œå™¨ä»¶åœ°å€ 0xA0ï¼‰
+ * ç”¨äºæŒä¹…åŒ–ä¿å­˜æ‘‡æ†å¾®è°ƒå€¼
+ ******************************************************************/
 #include "eeprom.h"
 #include "delay.h"
 #include "i2c.h"
 
-
-#define AT24C02_ADDR 0xA0  //AT24c02  IICµØÖ·
-
-
-#undef SUCCESS
+#define AT24C02_ADDR 0xA0 // AT24C02 I2C åœ°å€
 #define SUCCESS 0
-#undef FAILED
-#define FAILED  1
-#define START_ADDR 0  //256×Ö½Ú //ÆğÊ¼µØÖ·
-#define  STOP_ADDR 0XFF //½áÊøµØÖ·
- 
+#define FAILED 1
 
-
-
-
-
-
+/* è¯» 2 å­—èŠ‚å¾®è°ƒå€¼ */
 uint16_t read_AT24C02(uint8_t addr)
 {
-	uint16_t data;
-////	delay_ms(100);
-////	flag = IIC_Read_One_Byte(AT24C02_ADDR,addr); //¶ÁÈ¡ÊÇ·ñÒÑ¾­Ğ£×¼¹ıÊı¾İµÄ±êÖ¾Î»
-////	if(flag == 0x55) //Èç¹û¸Ã×éÊı¾İÒÑ¾­Ğ£×¼¹ıÁË£¬Ôò¶ÁÈ¡Êı¾İ£¬·ñÔò²»¶Á
-//	{
-//		u8 data_L;
-//		u8 data_H;
-//		delay_ms(100);
-//		data_L = IIC_Read_One_Byte(AT24C02_ADDR,addr);
-//		delay_ms(100);
-//		data_H = IIC_Read_One_Byte(AT24C02_ADDR,addr+2);
-//		return (data_L | (data_H<<8));//·µ»Ø´æÔÚEEPROMµÄĞ£×¼Öµ
-//	}
-  IIC_read_Bytes(AT24C02_ADDR,addr,(uint8_t*)&data,2);
-	return data; //·µ»ØÒÑµ±Ç°×éÊı¾İÊÇ·ñÔø¾­±»Ğ´ÈëµÄ±êÖ¾Î»¹©Ê¹ÓÃÕßË¼¿¼ÊÇ·ñÔÙ´ÎĞ´Èë
+    uint16_t data;
+    IIC_read_Bytes(AT24C02_ADDR, addr, (uint8_t *)&data, 2);
+    return data;
 }
 
-
-void write_AT24C02(uint8_t addr,uint16_t data)
+/* å†™ 2 å­—èŠ‚å¾®è°ƒå€¼ */
+void write_AT24C02(uint8_t addr, uint16_t data)
 {
-//	u8 data_L;
-//	u8 data_H;
-//	delay_ms(100);
-//	IIC_Write_One_Byte(AT24C02_ADDR,addr,0x55); //±íÊ¾ÒÑ¾­Ôø¾­ÓĞĞ£×¼¹ı£¬Ôò¿ÉÒÔ¶ÁĞ´Ğ£×¼Öµ
-//	
-//	data_L = data;
-//	data_H = data>>8;
-//	delay_ms(100);
-//	IIC_Write_One_Byte(AT24C02_ADDR,addr,data_L);
-	delay_ms(10);
-//	IIC_Write_One_Byte(AT24C02_ADDR,addr+2,data_H);
-	IIC_Write_Bytes(AT24C02_ADDR,addr,(uint8_t*)&data,2);
-	
+    delay_ms(10); // ç­‰å¾…ä¸Šä¸€æ¬¡å†™å‘¨æœŸå®Œæˆ
+    IIC_Write_Bytes(AT24C02_ADDR, addr, (uint8_t *)&data, 2);
 }
 
-
-
-
-uint8_t test_AT24C02(void)//²âÊÔ£¬ÔÚµØÖ·0x55µÄÄÚ´æµØÖ·Ğ´Èë0xAAºó¶Á»Ø³öÀ´£¬Èç¹û³öÀ´µÄÓëĞ´ÈëµÄÏàÍ¬Ôò²âÊÔ³É¹¦
+/* EEPROM è‡ªæ£€ï¼šåœ°å€ 0x55 å†™ 0xAA è¯»å›æ¯”å¯¹ */
+uint8_t test_AT24C02(void)
 {
-	uint8_t test = 0;
-  IIC_Write_One_Byte(AT24C02_ADDR,0x55,0xAA);
-	delay_ms(1000);
-	test = IIC_Read_One_Byte(AT24C02_ADDR,0x55);
-	if(test != 0xAA) //´æ´¢Æ÷Òì³£
-		return FAILED;
-	else
-		return SUCCESS;//·µ»Ø³É¹¦
+    uint8_t test = 0;
+    IIC_Write_One_Byte(AT24C02_ADDR, 0x55, 0xAA);
+    delay_ms(20); // ç­‰å¾…å†…éƒ¨å†™å‘¨æœŸï¼ˆAT24C02 æœ€å¤§ 5msï¼‰
+    test = IIC_Read_One_Byte(AT24C02_ADDR, 0x55);
+    if (test != 0xAA)
+        return FAILED; // å­˜å‚¨å¼‚å¸¸
+    else
+        return SUCCESS;
 }
-	
-
-
-
-
-
-
-
-
-
-
-
-
-

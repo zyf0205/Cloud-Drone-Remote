@@ -1,86 +1,57 @@
 /*******************************************************************
- *@brief 
- *@brief 
- *@time ZINµÁ◊”≤˙∆∑”Îºº ı 2017.1.8
- *@editor–°ƒœ&zin
- *∑…øÿ∞Æ∫√QQ»∫551883670,” œ‰759421287@qq.com
- *∑« ⁄»® π”√»À‘±£¨Ω˚÷π π”√°£Ω˚÷π¥´‘ƒ£¨Œ•’ﬂ“ªæ≠∑¢œ÷£¨«÷»®¥¶¿Ì°£
- *
+ * ËΩØ‰ª∂ SPI ÊÄªÁ∫øÔºàNRF24L01 ‰∏ìÁî®Ôºâ
+ * PB13 = SCK, PB14 = MISO, PB15 = MOSIÔºåMSB firstÔºåCPOL=0/CPHA=0
  ******************************************************************/
 #include "spi.h"
 
-#define  SCK_H  GPIOB->BSRR=GPIO_Pin_13  //SCK¿≠∏ﬂ
-#define  SCK_L  GPIOB->BRR=GPIO_Pin_13  //SCK¿≠∏ﬂ
-#define  MOSI_H  GPIOB->BSRR=GPIO_Pin_15  //MOSI¿≠∏ﬂ
-#define  MOSI_L  GPIOB->BRR=GPIO_Pin_15  //MOSI¿≠∏ﬂ
-#define  MISO  ((GPIOB->IDR&GPIO_Pin_14)?1:0)  //∂¡»°MISO
+#define SCK_H  GPIOB->BSRR = GPIO_Pin_13
+#define SCK_L  GPIOB->BRR  = GPIO_Pin_13
+#define MOSI_H GPIOB->BSRR = GPIO_Pin_15
+#define MOSI_L GPIOB->BRR  = GPIO_Pin_15
+#define MISO   ((GPIOB->IDR & GPIO_Pin_14) ? 1 : 0)
 
-//#define  SCK_H  GPIO_SetBits(GPIOB, GPIO_Pin_13)  //SCK¿≠∏ﬂ
-//#define  SCK_L  GPIO_ResetBits(GPIOB, GPIO_Pin_13)  //SCK¿≠∏ﬂ
-
-//#define  MOSI_H  GPIO_SetBits(GPIOB, GPIO_Pin_15)  //MOSI¿≠∏ﬂ
-//#define  MOSI_L  GPIO_ResetBits(GPIOB, GPIO_Pin_15)  //MOSI¿≠∏ﬂ
-
-//#define  MISO   GPIO_ReadInputDataBit(GPIOB, GPIO_Pin_14)  //∂¡»°MISO
-
-void SPI_Config(void)//io≥ı ºªØ≈‰÷√
+/* IO ÂàùÂßãÂåñÔºàCSN Âú® nrf24l01.c ‰∏≠ÈÖçÁΩÆÔºâ */
+void SPI_Config(void)
 {
-		GPIO_InitTypeDef GPIO_InitStructure;
-		RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
-		GPIO_SetBits(GPIOB, GPIO_Pin_12); //NRF_CS‘§÷√Œ™∏ﬂ 
-	
-		GPIO_InitStructure.GPIO_Pin = GPIO_Pin_13;//SCK
-		GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
-		GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-		GPIO_Init(GPIOB, &GPIO_InitStructure);
-	
-		GPIO_InitStructure.GPIO_Pin = GPIO_Pin_15;//MOSI
-		GPIO_Init(GPIOB, &GPIO_InitStructure);
-	
-		GPIO_InitStructure.GPIO_Pin = GPIO_Pin_14 ;//MISO
-		GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING; //MOSI“™”√ƒ£ƒ‚ ‰»Î
-		GPIO_Init(GPIOB,&GPIO_InitStructure);
-		SCK_L;
-		MOSI_H;
+    GPIO_InitTypeDef GPIO_InitStructure;
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
+    GPIO_SetBits(GPIOB, GPIO_Pin_12); // NRF_CS È¢ÑÁΩÆ‰∏∫È´ò
+
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_13; // SCK
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+    GPIO_Init(GPIOB, &GPIO_InitStructure);
+
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_15; // MOSI
+    GPIO_Init(GPIOB, &GPIO_InitStructure);
+
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_14; // MISO
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
+    GPIO_Init(GPIOB, &GPIO_InitStructure);
+
+    SCK_L;
+    MOSI_H;
 }
 
-
-
-
+/* SPI ËØªÂÜô‰∏Ä‰∏™Â≠óËäÇÔºàÂêåÊó∂Êî∂ÂèëÔºâ */
 u8 SPI_RW(u8 byte)
 {
-		uint8_t i;
+    uint8_t i;
+    u8 Temp = 0x00;
 
-		u8 Temp=0x00;
-
-		for (i = 0; i < 8; i++)
-
-		{
-
-				SCK_L;//sclk = 0;//œ»Ω´ ±÷”¿≠∏ﬂ
-
-				if (byte&0x80)
-				{
-						MOSI_H; // //SO=1
-				}
-				else
-				{
-						MOSI_L;// //SO=0
-				}
-
-				byte <<= 1;
-				Temp<<=1;
-				
-				SCK_H; //¿≠µÕ ±÷”
-				
-				if(MISO) //∂¡µΩ1 ±
-				{
-					Temp++;
-				}
-				SCK_L;	
-		}
-		return Temp; //∑µªÿ∂¡µΩmiso ‰»Îµƒ÷µ
-
+    for (i = 0; i < 8; i++)
+    {
+        SCK_L; // ÂÖàÊãâ‰ΩéÊó∂Èíü
+        if (byte & 0x80)
+            MOSI_H;
+        else
+            MOSI_L;
+        byte <<= 1;
+        Temp <<= 1;
+        SCK_H; // ‰∏äÂçáÊ≤øÈááÊ†∑
+        if (MISO)
+            Temp++;
+        SCK_L;
+    }
+    return Temp;
 }
-
-

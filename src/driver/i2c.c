@@ -1,60 +1,39 @@
-/******************** (C) COPYRIGHT 2013 YunMiao ********************
- * File Name          : main.c
- * Author             : YunMiao
- * Version            : V2.0.1
- * Date               : 08/01/20013
- * Description        : IIC basic function
- ********************************************************************************
- ********************************************************************************
- *******************************aircraft****************************************/
+/*******************************************************************
+ * è½¯ä»¶ I2C æ€»çº¿ï¼ˆPB6 = SCL, PB7 = SDAï¼‰
+ * æŒ‚è½½ AT24C02 EEPROMï¼Œç”¨äºä¿å­˜æ‘‡æ†å¾®è°ƒå€¼
+ ******************************************************************/
 #include "i2c.h"
 
-#undef SUCCESS
 #define SUCCESS 0
-#undef FAILED
-#define FAILED  1
+#define FAILED 1
 
-/******************************************************************************
- * º¯ÊıÃû³Æ: I2c_delay
- * º¯Êı¹¦ÄÜ: I2c ÑÓÊ±º¯Êı
- * Èë¿Ú²ÎÊı: ÎŞ
- ******************************************************************************/
-#define I2c_delay()  {\
-    volatile unsigned char i = 5;\
-    while (i)\
-        i--;\
-}
+#define I2c_delay()                \
+    {                              \
+        volatile unsigned char i;  \
+        for (i = 5; i > 0; i--)    \
+            ;                      \
+    }
 
-/******************************************************************************
- * º¯ÊıÃû³Æ: I2c_Init
- * º¯Êı¹¦ÄÜ: I2c  GPIO³õÊ¼»¯
- * Èë¿Ú²ÎÊı: ÎŞ
- ******************************************************************************/
- void IIC_Init(void)
+/* I2C GPIO åˆå§‹åŒ–ï¼šå¼€æ¼è¾“å‡ºï¼ˆæ¿ä¸Šæœ‰ä¸Šæ‹‰ç”µé˜»ï¼‰ */
+void IIC_Init(void)
 {
     GPIO_InitTypeDef GPIO_InitStrucSUCCESS;
     GPIO_InitStrucSUCCESS.GPIO_Pin = SCL_PIN;
     GPIO_InitStrucSUCCESS.GPIO_Speed = GPIO_Speed_50MHz;
     GPIO_InitStrucSUCCESS.GPIO_Mode = GPIO_Mode_Out_PP;
     GPIO_Init(IIC_GPIO, &GPIO_InitStrucSUCCESS);
-	
-	    
+
     GPIO_InitStrucSUCCESS.GPIO_Pin = SCL_PIN | SDA_PIN;
-    GPIO_InitStrucSUCCESS.GPIO_Speed = GPIO_Speed_50MHz;
     GPIO_InitStrucSUCCESS.GPIO_Mode = GPIO_Mode_Out_OD;
     GPIO_Init(IIC_GPIO, &GPIO_InitStrucSUCCESS);
 }
 
-/******************************************************************************
- * º¯ÊıÃû³Æ: I2c_Start
- * º¯Êı¹¦ÄÜ: I2c  ÆğÊ¼ĞÅºÅ
- * Èë¿Ú²ÎÊı: ÎŞ
- ******************************************************************************/
+/* èµ·å§‹ä¿¡å·ï¼šè¿”å› FAILED è¡¨ç¤ºæ€»çº¿å¿™ */
 static uint8_t I2c_Start(void)
 {
     SDA_H;
     SCL_H;
-	I2c_delay();
+    I2c_delay();
     if (!SDA_read)
         return FAILED;
     SDA_L;
@@ -66,29 +45,21 @@ static uint8_t I2c_Start(void)
     return SUCCESS;
 }
 
-/******************************************************************************
- * º¯ÊıÃû³Æ: I2c_Stop
- * º¯Êı¹¦ÄÜ: I2c  Í£Ö¹ĞÅºÅ
- * Èë¿Ú²ÎÊı: ÎŞ
- ******************************************************************************/
+/* åœæ­¢ä¿¡å· */
 static void I2c_Stop(void)
 {
     SCL_L;
     I2c_delay();
     SDA_L;
-	I2c_delay();
+    I2c_delay();
     I2c_delay();
     SCL_H;
-	I2c_delay();
+    I2c_delay();
     SDA_H;
     I2c_delay();
 }
 
-/******************************************************************************
- * º¯ÊıÃû³Æ: I2c_Ack
- * º¯Êı¹¦ÄÜ: I2c  ²úÉúÓ¦´ğĞÅºÅ
- * Èë¿Ú²ÎÊı: ÎŞ
- ******************************************************************************/
+/* åº”ç­” */
 static void I2c_Ack(void)
 {
     SCL_L;
@@ -96,19 +67,15 @@ static void I2c_Ack(void)
     SDA_L;
     I2c_delay();
     SCL_H;
-	I2c_delay();
-	I2c_delay();
-	I2c_delay();
+    I2c_delay();
+    I2c_delay();
+    I2c_delay();
     I2c_delay();
     SCL_L;
     I2c_delay();
 }
 
-/******************************************************************************
- * º¯ÊıÃû³Æ: I2c_NoAck
- * º¯Êı¹¦ÄÜ: I2c  ²úÉúNAck
- * Èë¿Ú²ÎÊı: ÎŞ
- ******************************************************************************/
+/* éåº”ç­” */
 static void I2c_NoAck(void)
 {
     SCL_L;
@@ -116,20 +83,15 @@ static void I2c_NoAck(void)
     SDA_H;
     I2c_delay();
     SCL_H;
-	I2c_delay();
-	I2c_delay();
-	I2c_delay();
+    I2c_delay();
+    I2c_delay();
+    I2c_delay();
     I2c_delay();
     SCL_L;
     I2c_delay();
 }
 
-/*******************************************************************************
- *º¯ÊıÃû³Æ:	I2c_WaitAck
- *º¯Êı¹¦ÄÜ:	µÈ´ıÓ¦´ğĞÅºÅµ½À´
- *·µ»ØÖµ£º   1£¬½ÓÊÕÓ¦´ğÊ§°Ü
- *           0£¬½ÓÊÕÓ¦´ğ³É¹¦
- *******************************************************************************/
+/* ç­‰å¾…ä»æœºåº”ç­”ï¼šè¿”å› FAILED è¡¨ç¤ºæ— åº”ç­” */
 static uint8_t I2c_WaitAck(void)
 {
     SCL_L;
@@ -137,11 +99,12 @@ static uint8_t I2c_WaitAck(void)
     SDA_H;
     I2c_delay();
     SCL_H;
-	I2c_delay();
-	I2c_delay();
+    I2c_delay();
+    I2c_delay();
     I2c_delay();
 
-    if (SDA_read) {
+    if (SDA_read)
+    {
         SCL_L;
         return FAILED;
     }
@@ -149,15 +112,12 @@ static uint8_t I2c_WaitAck(void)
     return SUCCESS;
 }
 
-/******************************************************************************
- * º¯ÊıÃû³Æ: I2c_SendByte
- * º¯Êı¹¦ÄÜ: I2c  ·¢ËÍÒ»¸ö×Ö½ÚÊı¾İ
- * Èë¿Ú²ÎÊı: byte  ·¢ËÍµÄÊı¾İ
- ******************************************************************************/
+/* å‘é€ä¸€ä¸ªå­—èŠ‚ */
 static void I2c_SendByte(uint8_t byte)
 {
     uint8_t i = 8;
-    while (i--) {
+    while (i--)
+    {
         SCL_L;
         I2c_delay();
         if (byte & 0x80)
@@ -167,66 +127,56 @@ static void I2c_SendByte(uint8_t byte)
         byte <<= 1;
         I2c_delay();
         SCL_H;
-		I2c_delay();
-		I2c_delay();
-		I2c_delay();
+        I2c_delay();
+        I2c_delay();
+        I2c_delay();
     }
     SCL_L;
 }
 
-/******************************************************************************
- * º¯ÊıÃû³Æ: I2c_ReadByte
- * º¯Êı¹¦ÄÜ: I2c  ¶ÁÈ¡Ò»¸ö×Ö½ÚÊı¾İ
- * Èë¿Ú²ÎÊı: ÎŞ
- * ·µ»ØÖµ	 ¶ÁÈ¡µÄÊı¾İ
- ******************************************************************************/
+/* è¯»å–ä¸€ä¸ªå­—èŠ‚ */
 static uint8_t I2c_ReadByte(void)
 {
     uint8_t i = 8;
     uint8_t byte = 0;
 
     SDA_H;
-    while (i--) {
+    while (i--)
+    {
         byte <<= 1;
         SCL_L;
         I2c_delay();
-		I2c_delay();
-        SCL_H;
-		I2c_delay();
         I2c_delay();
-		I2c_delay();
-        if (SDA_read) {
+        SCL_H;
+        I2c_delay();
+        I2c_delay();
+        I2c_delay();
+        if (SDA_read)
             byte |= 0x01;
-        }
     }
     SCL_L;
     return byte;
 }
 
-/******************************************************************************
- * º¯ÊıÃû³Æ: i2cWriteBuffer
- * º¯Êı¹¦ÄÜ: I2c       ÏòÉè±¸µÄÄ³Ò»¸öµØÖ·Ğ´Èë¹Ì¶¨³¤¶ÈµÄÊı¾İ
- * Èë¿Ú²ÎÊı: addr,     Éè±¸µØÖ·
- *           reg£¬     ¼Ä´æÆ÷µØÖ·
- *			 len£¬     Êı¾İ³¤¶È
- *			 *data	   Êı¾İÖ¸Õë
- * ·µ»ØÖµ	 1
- ******************************************************************************/
-int8_t IIC_Write_Bytes(uint8_t addr,uint8_t reg,uint8_t *data,uint8_t len)
+/* å‘è®¾å¤‡å¯„å­˜å™¨å†™å…¥å®šé•¿æ•°æ® */
+int8_t IIC_Write_Bytes(uint8_t addr, uint8_t reg, uint8_t *data, uint8_t len)
 {
     int i;
     if (I2c_Start() == FAILED)
         return FAILED;
     I2c_SendByte(addr);
-    if (I2c_WaitAck() == FAILED) {
+    if (I2c_WaitAck() == FAILED)
+    {
         I2c_Stop();
         return FAILED;
     }
     I2c_SendByte(reg);
     I2c_WaitAck();
-    for (i = 0; i < len; i++) {
+    for (i = 0; i < len; i++)
+    {
         I2c_SendByte(data[i]);
-        if (I2c_WaitAck() == FAILED) {
+        if (I2c_WaitAck() == FAILED)
+        {
             I2c_Stop();
             return FAILED;
         }
@@ -234,44 +184,43 @@ int8_t IIC_Write_Bytes(uint8_t addr,uint8_t reg,uint8_t *data,uint8_t len)
     I2c_Stop();
     return SUCCESS;
 }
-int8_t IIC_Read_One_Byte(uint8_t addr,uint8_t reg)
+
+/* è¯»è®¾å¤‡å¯„å­˜å™¨ä¸€ä¸ªå­—èŠ‚ */
+int8_t IIC_Read_One_Byte(uint8_t addr, uint8_t reg)
 {
-	uint8_t recive = 0;
+    uint8_t recive = 0;
     if (I2c_Start() == FAILED)
         return FAILED;
     I2c_SendByte(addr);
-    if (I2c_WaitAck() == FAILED) {
+    if (I2c_WaitAck() == FAILED)
+    {
         I2c_Stop();
         return FAILED;
     }
     I2c_SendByte(reg);
     I2c_WaitAck();
-	I2c_Stop();
+    I2c_Stop();
     I2c_Start();
-	I2c_SendByte(addr+1);
-    if (I2c_WaitAck() == FAILED) {
+    I2c_SendByte(addr + 1);
+    if (I2c_WaitAck() == FAILED)
+    {
         I2c_Stop();
         return FAILED;
     }
-	recive = I2c_ReadByte();
-	 I2c_NoAck();
-	I2c_Stop();
-	return recive;
+    recive = I2c_ReadByte();
+    I2c_NoAck();
+    I2c_Stop();
+    return recive;
 }
 
-/*****************************************************************************
- *º¯ÊıÃû³Æ:	i2cWrite
- *º¯Êı¹¦ÄÜ:	Ğ´ÈëÖ¸¶¨Éè±¸ Ö¸¶¨¼Ä´æÆ÷Ò»¸ö×Ö½Ú
- *Èë¿Ú²ÎÊı£º addr Ä¿±êÉè±¸µØÖ·
- *		     reg   ¼Ä´æÆ÷µØÖ·
- *		     data ¶Á³öµÄÊı¾İ½«Òª´æ·ÅµÄµØÖ·
- *******************************************************************************/
-int8_t IIC_Write_One_Byte(uint8_t addr,uint8_t reg,uint8_t data)
+/* å†™è®¾å¤‡å¯„å­˜å™¨ä¸€ä¸ªå­—èŠ‚ */
+int8_t IIC_Write_One_Byte(uint8_t addr, uint8_t reg, uint8_t data)
 {
     if (I2c_Start() == FAILED)
         return FAILED;
     I2c_SendByte(addr);
-    if (I2c_WaitAck() == FAILED) {
+    if (I2c_WaitAck() == FAILED)
+    {
         I2c_Stop();
         return FAILED;
     }
@@ -283,25 +232,29 @@ int8_t IIC_Write_One_Byte(uint8_t addr,uint8_t reg,uint8_t data)
     return SUCCESS;
 }
 
-int8_t IIC_read_Bytes(uint8_t addr,uint8_t reg,uint8_t *data,uint8_t len)
+/* è¯»è®¾å¤‡å¯„å­˜å™¨å®šé•¿æ•°æ® */
+int8_t IIC_read_Bytes(uint8_t addr, uint8_t reg, uint8_t *data, uint8_t len)
 {
     if (I2c_Start() == FAILED)
         return FAILED;
     I2c_SendByte(addr);
-    if (I2c_WaitAck() == FAILED) {
+    if (I2c_WaitAck() == FAILED)
+    {
         I2c_Stop();
         return FAILED;
     }
     I2c_SendByte(reg);
     I2c_WaitAck();
-	I2c_Stop();
+    I2c_Stop();
     I2c_Start();
-    I2c_SendByte(addr+1);
-    if (I2c_WaitAck() == FAILED) {
+    I2c_SendByte(addr + 1);
+    if (I2c_WaitAck() == FAILED)
+    {
         I2c_Stop();
         return FAILED;
     }
-    while (len) {
+    while (len)
+    {
         *data = I2c_ReadByte();
         if (len == 1)
             I2c_NoAck();

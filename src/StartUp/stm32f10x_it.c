@@ -129,23 +129,4 @@ void DebugMon_Handler(void)
 /* PendSV_Handler is provided by FreeRTOS (port.c) */
 /* SysTick_Handler is provided by FreeRTOS (port.c) */
 
-
-
-//void USART1_IRQHandler(void)
-//{
-//	unsigned char code;
-//	if(USART_GetITStatus(USART1, USART_IT_RXNE) != RESET)
-//	{ 	
-//	    code=USART_ReceiveData(USART1);
-//	  	printf("%c",code);    //�����ܵ�������ֱ�ӷ��ش�ӡ
-//	} 
-//	 
-//}
-
- 
-
-
-
-
-
 /******************* (C) COPYRIGHT 2011 STMicroelectronics *****END OF FILE****/

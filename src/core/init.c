@@ -65,14 +65,9 @@ void BEEP_INIT(void)
  */
 void ALL_Init(void)
 {
-    BEEP_INIT(); // 蜂鸣器初始化
-    {
-        int32_t beep_cnt = 2000000;
-        while (beep_cnt-- > 0)
-        {
-        }
-        BEEP_L; // 上电短暂提示音
-    }
+    BEEP_INIT();   // 蜂鸣器初始化（PA12）
+    delay_ms(200); // 上电短暂提示音
+    BEEP_L;
 
     IIC_Init();        // 软件 I2C 初始化
     NRF24L01_init();   // NRF24L01 初始化（TX 模式）
