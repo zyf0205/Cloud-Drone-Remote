@@ -7,7 +7,7 @@
 
   <Targets>
     <Target>
-      <TargetName>Target 1</TargetName>
+      <TargetName>remote</TargetName>
       <ToolsetNumber>0x4</ToolsetNumber>
       <ToolsetName>ARM-ADS</ToolsetName>
       <TargetOption>
@@ -46,14 +46,14 @@
             <NotGenerated>0</NotGenerated>
             <InvalidFlash>1</InvalidFlash>
           </TargetStatus>
-          <OutputDirectory>.\Objects\</OutputDirectory>
+          <OutputDirectory>.\build\keil\</OutputDirectory>
           <OutputName>remote</OutputName>
           <CreateExecutable>1</CreateExecutable>
           <CreateLib>0</CreateLib>
           <CreateHexFile>1</CreateHexFile>
           <DebugInformation>1</DebugInformation>
           <BrowseInformation>1</BrowseInformation>
-          <ListingPath>.\Listings\</ListingPath>
+          <ListingPath>.\build\keil\</ListingPath>
           <HexFormatSelection>1</HexFormatSelection>
           <Merge32K>0</Merge32K>
           <CreateBatchFile>0</CreateBatchFile>
@@ -365,7 +365,7 @@
               <MiscControls></MiscControls>
               <Define>USE_STDPERIPH_DRIVER,STM32F10X_MD</Define>
               <Undefine></Undefine>
-              <IncludePath>.\USER;.\StartUp;.\Lib\inc;.\Lib\src;.\CONFIG;.\HARDWARE;.\HAL;.\APP;.\BSP</IncludePath>
+              <IncludePath>.\src\core;.\src\StartUp;.\src\Lib\inc;.\src\Lib\src;.\src\driver;.\src\bsp;.\src\control;.\src\app;.\src\include;.\src\FreeRTOS\include;.\src\FreeRTOS;.\src\FreeRTOS\portable\RVDS\ARM_CM3</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -406,225 +406,284 @@
       </TargetOption>
       <Groups>
         <Group>
-          <GroupName>Source Group 1</GroupName>
-        </Group>
-        <Group>
-          <GroupName>USER</GroupName>
+          <GroupName>start</GroupName>
           <Files>
             <File>
               <FileName>core_cm3.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\StartUp\core_cm3.c</FilePath>
+              <FilePath>.\src\StartUp\core_cm3.c</FilePath>
             </File>
             <File>
               <FileName>stm32f10x_it.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\StartUp\stm32f10x_it.c</FilePath>
+              <FilePath>.\src\StartUp\stm32f10x_it.c</FilePath>
             </File>
             <File>
               <FileName>system_stm32f10x.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\StartUp\system_stm32f10x.c</FilePath>
+              <FilePath>.\src\StartUp\system_stm32f10x.c</FilePath>
             </File>
             <File>
               <FileName>startup_stm32f10x_md.s</FileName>
               <FileType>2</FileType>
-              <FilePath>.\StartUp\startup_stm32f10x_md.s</FilePath>
+              <FilePath>.\src\StartUp\startup_stm32f10x_md.s</FilePath>
             </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>core</GroupName>
+          <Files>
             <File>
               <FileName>main.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\USER\main.c</FilePath>
+              <FilePath>.\src\core\main.c</FilePath>
             </File>
             <File>
-              <FileName>delay.c</FileName>
+              <FileName>init.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\USER\delay.c</FilePath>
+              <FilePath>.\src\core\init.c</FilePath>
             </File>
             <File>
               <FileName>sys.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\USER\sys.c</FilePath>
+              <FilePath>.\src\core\sys.c</FilePath>
+            </File>
+            <File>
+              <FileName>delay.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\core\delay.c</FilePath>
+            </File>
+            <File>
+              <FileName>all_data.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\src\include\all_data.h</FilePath>
+            </File>
+            <File>
+              <FileName>all_define.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>.\src\include\all_define.h</FilePath>
             </File>
           </Files>
         </Group>
         <Group>
-          <GroupName>LIB</GroupName>
+          <GroupName>library</GroupName>
           <Files>
             <File>
               <FileName>misc.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\Lib\src\misc.c</FilePath>
+              <FilePath>.\src\Lib\src\misc.c</FilePath>
             </File>
             <File>
               <FileName>stm32f10x_adc.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\Lib\src\stm32f10x_adc.c</FilePath>
+              <FilePath>.\src\Lib\src\stm32f10x_adc.c</FilePath>
             </File>
             <File>
               <FileName>stm32f10x_bkp.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\Lib\src\stm32f10x_bkp.c</FilePath>
+              <FilePath>.\src\Lib\src\stm32f10x_bkp.c</FilePath>
             </File>
             <File>
               <FileName>stm32f10x_can.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\Lib\src\stm32f10x_can.c</FilePath>
+              <FilePath>.\src\Lib\src\stm32f10x_can.c</FilePath>
             </File>
             <File>
               <FileName>stm32f10x_cec.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\Lib\src\stm32f10x_cec.c</FilePath>
+              <FilePath>.\src\Lib\src\stm32f10x_cec.c</FilePath>
             </File>
             <File>
               <FileName>stm32f10x_crc.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\Lib\src\stm32f10x_crc.c</FilePath>
+              <FilePath>.\src\Lib\src\stm32f10x_crc.c</FilePath>
             </File>
             <File>
               <FileName>stm32f10x_dac.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\Lib\src\stm32f10x_dac.c</FilePath>
+              <FilePath>.\src\Lib\src\stm32f10x_dac.c</FilePath>
             </File>
             <File>
               <FileName>stm32f10x_dbgmcu.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\Lib\src\stm32f10x_dbgmcu.c</FilePath>
+              <FilePath>.\src\Lib\src\stm32f10x_dbgmcu.c</FilePath>
             </File>
             <File>
               <FileName>stm32f10x_dma.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\Lib\src\stm32f10x_dma.c</FilePath>
+              <FilePath>.\src\Lib\src\stm32f10x_dma.c</FilePath>
             </File>
             <File>
               <FileName>stm32f10x_exti.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\Lib\src\stm32f10x_exti.c</FilePath>
+              <FilePath>.\src\Lib\src\stm32f10x_exti.c</FilePath>
             </File>
             <File>
               <FileName>stm32f10x_flash.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\Lib\src\stm32f10x_flash.c</FilePath>
+              <FilePath>.\src\Lib\src\stm32f10x_flash.c</FilePath>
             </File>
             <File>
               <FileName>stm32f10x_fsmc.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\Lib\src\stm32f10x_fsmc.c</FilePath>
+              <FilePath>.\src\Lib\src\stm32f10x_fsmc.c</FilePath>
             </File>
             <File>
               <FileName>stm32f10x_gpio.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\Lib\src\stm32f10x_gpio.c</FilePath>
+              <FilePath>.\src\Lib\src\stm32f10x_gpio.c</FilePath>
             </File>
             <File>
               <FileName>stm32f10x_i2c.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\Lib\src\stm32f10x_i2c.c</FilePath>
+              <FilePath>.\src\Lib\src\stm32f10x_i2c.c</FilePath>
             </File>
             <File>
               <FileName>stm32f10x_iwdg.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\Lib\src\stm32f10x_iwdg.c</FilePath>
+              <FilePath>.\src\Lib\src\stm32f10x_iwdg.c</FilePath>
             </File>
             <File>
               <FileName>stm32f10x_pwr.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\Lib\src\stm32f10x_pwr.c</FilePath>
+              <FilePath>.\src\Lib\src\stm32f10x_pwr.c</FilePath>
             </File>
             <File>
               <FileName>stm32f10x_rcc.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\Lib\src\stm32f10x_rcc.c</FilePath>
+              <FilePath>.\src\Lib\src\stm32f10x_rcc.c</FilePath>
             </File>
             <File>
               <FileName>stm32f10x_rtc.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\Lib\src\stm32f10x_rtc.c</FilePath>
+              <FilePath>.\src\Lib\src\stm32f10x_rtc.c</FilePath>
             </File>
             <File>
               <FileName>stm32f10x_sdio.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\Lib\src\stm32f10x_sdio.c</FilePath>
+              <FilePath>.\src\Lib\src\stm32f10x_sdio.c</FilePath>
             </File>
             <File>
               <FileName>stm32f10x_spi.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\Lib\src\stm32f10x_spi.c</FilePath>
+              <FilePath>.\src\Lib\src\stm32f10x_spi.c</FilePath>
             </File>
             <File>
               <FileName>stm32f10x_tim.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\Lib\src\stm32f10x_tim.c</FilePath>
+              <FilePath>.\src\Lib\src\stm32f10x_tim.c</FilePath>
             </File>
             <File>
               <FileName>stm32f10x_usart.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\Lib\src\stm32f10x_usart.c</FilePath>
+              <FilePath>.\src\Lib\src\stm32f10x_usart.c</FilePath>
             </File>
             <File>
               <FileName>stm32f10x_wwdg.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\Lib\src\stm32f10x_wwdg.c</FilePath>
+              <FilePath>.\src\Lib\src\stm32f10x_wwdg.c</FilePath>
             </File>
           </Files>
         </Group>
         <Group>
-          <GroupName>CONFIG</GroupName>
+          <GroupName>driver</GroupName>
           <Files>
             <File>
-              <FileName>ADC_DMA_Config.c</FileName>
+              <FileName>adc.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\CONFIG\ADC_DMA_Config.c</FilePath>
+              <FilePath>.\src\driver\adc.c</FilePath>
             </File>
             <File>
-              <FileName>TIM.c</FileName>
+              <FileName>i2c.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\CONFIG\TIM.c</FilePath>
+              <FilePath>.\src\driver\i2c.c</FilePath>
             </File>
             <File>
-              <FileName>Spi.c</FileName>
+              <FileName>spi.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\CONFIG\Spi.c</FilePath>
+              <FilePath>.\src\driver\spi.c</FilePath>
             </File>
             <File>
-              <FileName>IIC_SOFTWARE.c</FileName>
+              <FileName>tim.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\CONFIG\IIC_SOFTWARE.c</FilePath>
+              <FilePath>.\src\driver\tim.c</FilePath>
             </File>
             <File>
-              <FileName>USART.c</FileName>
+              <FileName>usart.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\CONFIG\USART.c</FilePath>
+              <FilePath>.\src\driver\usart.c</FilePath>
             </File>
           </Files>
         </Group>
         <Group>
-          <GroupName>HARDWARE</GroupName>
+          <GroupName>bsp</GroupName>
           <Files>
             <File>
               <FileName>nrf24l01.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\HARDWARE\nrf24l01.c</FilePath>
+              <FilePath>.\src\bsp\nrf24l01.c</FilePath>
             </File>
             <File>
-              <FileName>EEPROM.c</FileName>
+              <FileName>eeprom.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\CONFIG\EEPROM.c</FilePath>
+              <FilePath>.\src\bsp\eeprom.c</FilePath>
             </File>
           </Files>
         </Group>
         <Group>
-          <GroupName>HAL</GroupName>
+          <GroupName>control</GroupName>
           <Files>
             <File>
               <FileName>remote.c</FileName>
               <FileType>1</FileType>
-              <FilePath>.\HAL\remote.c</FilePath>
+              <FilePath>.\src\control\remote.c</FilePath>
             </File>
           </Files>
         </Group>
         <Group>
-          <GroupName>readme</GroupName>
+          <GroupName>app</GroupName>
+          <Files>
+            <File>
+              <FileName>task_rc.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\app\task_rc.c</FilePath>
+            </File>
+            <File>
+              <FileName>freertos_hooks.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\app\freertos_hooks.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>FreeRTOS</GroupName>
+          <Files>
+            <File>
+              <FileName>tasks.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\FreeRTOS\tasks.c</FilePath>
+            </File>
+            <File>
+              <FileName>queue.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\FreeRTOS\queue.c</FilePath>
+            </File>
+            <File>
+              <FileName>list.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\FreeRTOS\list.c</FilePath>
+            </File>
+            <File>
+              <FileName>port.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\FreeRTOS\portable\RVDS\ARM_CM3\port.c</FilePath>
+            </File>
+            <File>
+              <FileName>heap_4.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\FreeRTOS\portable\MemMang\heap_4.c</FilePath>
+            </File>
+          </Files>
         </Group>
       </Groups>
     </Target>

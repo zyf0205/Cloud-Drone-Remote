@@ -70,3 +70,6 @@ Desktop.ini
 .mimocode/
 *.bak
 *.tmp
+
+# Scatter files (linker generated)
+*.sct
