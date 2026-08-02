@@ -1,0 +1,72 @@
+# ==========
+# Keil MDK
+# ==========
+# Build output (all under build/)
+*.axf
+*.hex
+*.bin
+*.map
+*.lst
+*.htm
+*.dep
+*.d
+*.crf
+*.o
+*.rfs
+*.tra
+*.elf
+*.iex
+*.lnp
+
+# Keil MDK - User-specific files (ignore)
+*.uvguix.*
+*.uvoptx
+*.uvopt
+
+# Keil MDK - Project files (keep .uvprojx)
+*.uvprojx.*
+
+# Build logs
+*.log
+
+# ==========
+# J-Link
+# ==========
+JLinkLog.txt
+JLinkSettings.ini
+JLink*/**
+
+# ==========
+# EIDE (Embedded IDE)
+# ==========
+/.eide/log
+/.eide.usr.ctx.json
+*.ept
+*.eide-template
+
+# ==========
+# IDE
+# ==========
+/.vscode/launch.json
+/.settings
+/.idea
+
+# ==========
+# Build directories (源码外所有编译/中间产物集中于此)
+# ==========
+/build
+/DebugConfig
+
+# ==========
+# OS
+# ==========
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ==========
+# Other
+# ==========
+.mimocode/
+*.bak
+*.tmp
