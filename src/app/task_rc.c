@@ -9,15 +9,21 @@
  * 仅 EEPROM 故障 = 每秒两短鸣（微调不可用，仍可飞行）
  * 与按键提示音偶发交叠时以本函数为准，不影响故障提醒
  */
+#define FAULT_BEEP_PERIOD_MS  1000u /* 报警循环周期 */
+#define NRF_BEEP_ON_MS        400u  /* NRF 故障长鸣时长 */
+#define EEPROM_BEEP1_ON_MS    100u  /* EEPROM 故障第一短鸣时长 */
+#define EEPROM_BEEP2_START_MS 200u  /* EEPROM 故障第二短鸣起点 */
+#define EEPROM_BEEP2_ON_MS    100u  /* EEPROM 故障第二短鸣时长 */
+
 static void fault_beep(void)
 {
-    uint32_t t = SysTick_count % 1000;
+    uint32_t t = SysTick_count % FAULT_BEEP_PERIOD_MS;
     uint8_t on = 0;
 
     if (g_boot_fault & FAULT_NRF)
-        on = (t < 400);
+        on = (t < NRF_BEEP_ON_MS);
     else if (g_boot_fault & FAULT_EEPROM)
-        on = (t < 100) || (t >= 200 && t < 300);
+        on = (t < EEPROM_BEEP1_ON_MS) || (t >= EEPROM_BEEP2_START_MS && t < EEPROM_BEEP2_START_MS + EEPROM_BEEP2_ON_MS);
 
     if (on)
         BEEP_H;
