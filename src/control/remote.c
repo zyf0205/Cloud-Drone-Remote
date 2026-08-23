@@ -53,11 +53,20 @@ void key_init(void)
     GPIO_Init(GPIOC, &GPIO_InitStructure);
 }
 
-/* 遥控数据初始化：读取 EEPROM 微调值 + 按键引脚 */
+/* 遥控数据初始化：读取 EEPROM 微调值 + 按键引脚
+ * EEPROM 自检失败时微调清零（避免读回随机值污染中位），本次开机微调不可用 */
 void RC_INIT(void)
 {
-    offset.roll = read_AT24C02(ROLL_ADDR_OFFSET); // 读取 Roll 微调
-    offset.pitch = read_AT24C02(PITCH_ADDR_OFFSET); // 读取 Pitch 微调
+    if (g_boot_fault & FAULT_EEPROM)
+    {
+        offset.roll = 0;
+        offset.pitch = 0;
+    }
+    else
+    {
+        offset.roll = read_AT24C02(ROLL_ADDR_OFFSET);   // 读取 Roll 微调
+        offset.pitch = read_AT24C02(PITCH_ADDR_OFFSET); // 读取 Pitch 微调
+    }
     key_init();
 }
 
@@ -66,6 +75,9 @@ static uint8_t tx_data[32] = {0xAA, 0xAF, 0x03, 32 - 5};
 static void NRF_SEND(void)
 {
     uint8_t i;
+
+    if (g_boot_fault & FAULT_NRF)
+        return; /* NRF 不在位：跳过发送，否则 TxPacket 死等 IRQ 只能靠 IWDG 复位兜底 */
 
     for (i = 4; i < 26; i += 2)
     {

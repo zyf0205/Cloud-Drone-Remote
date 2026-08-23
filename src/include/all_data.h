@@ -20,4 +20,9 @@ typedef volatile struct
 
 extern _st_Remote Remote;
 
+/* 启动自检故障标志(init.c 置位,task_rc.c 蜂鸣报警) */
+#define FAULT_NRF     0x01  /* NRF 模块不在位:跳过发送并长鸣报警,禁止使用 */
+#define FAULT_EEPROM  0x02  /* EEPROM 异常:微调不可用(清零处理),两短鸣提示 */
+extern volatile uint8_t g_boot_fault;
+
 #endif

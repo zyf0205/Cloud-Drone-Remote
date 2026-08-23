@@ -1,6 +1,7 @@
 #include "all_define.h"
 
 volatile uint32_t SysTick_count;
+volatile uint8_t g_boot_fault = 0; /* 启动自检故障标志(FAULT_NRF/FAULT_EEPROM) */
 
 /*
  * 系统时钟配置：遥控器要求功耗低，无外部晶振，
@@ -61,18 +62,28 @@ void BEEP_INIT(void)
 /*
  * 全部硬件初始化（调度器启动前完成，delay_ms 可用）：
  * 软件 I2C（挂 AT24C02 EEPROM）→ NRF24L01 → EEPROM 自检 → ADC DMA（4 通道摇杆）
- * → 遥控通道与按键初始化。逻辑与旧版裸机完全一致。
+ * → 遥控通道与按键初始化。
+ * NRF/EEPROM 自检带重试上界，失败置 g_boot_fault 后继续启动，
+ * 由 RCTask 周期蜂鸣提醒（NRF=长鸣，EEPROM=两短鸣），不再死等卡死开机。
  */
 void ALL_Init(void)
 {
+    u8 retry;
+
     BEEP_INIT();   // 蜂鸣器初始化（PA12）
     delay_ms(200); // 上电短暂提示音
     BEEP_L;
 
-    IIC_Init();        // 软件 I2C 初始化
-    NRF24L01_init();   // NRF24L01 初始化（TX 模式）
-    while (test_AT24C02() != 0)
-        ; // EEPROM 自检失败则等待
+    IIC_Init(); // 软件 I2C 初始化
+
+    if (NRF24L01_init() != 0) // NRF 初始化（TX 模式，内部带重试上界）
+        g_boot_fault |= FAULT_NRF;
+
+    retry = 20; // EEPROM 自检最多重试 20 次（每次含 ~20ms 写周期）
+    while (test_AT24C02() != 0 && retry > 0)
+        retry--;
+    if (retry == 0)
+        g_boot_fault |= FAULT_EEPROM;
 
     ADC1_GPIO_Config(); // ADC 引脚初始化
     ADC1_Mode_Config(); // ADC DMA 循环采集 4 通道摇杆

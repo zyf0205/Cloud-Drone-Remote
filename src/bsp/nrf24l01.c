@@ -3,11 +3,12 @@
  * 控制脚：CE = PA11, CSN = PB12, IRQ = PA8
  * SPI（软件模拟）：PB13 = SCK, PB14 = MISO, PB15 = MOSI
  *
- * RF 参数：RF_CH=1、地址 {E1,E2,E3,E4,E5}、32B 载荷、无 ACK、2Mbps
+ * RF 参数：RF_CH=1、地址 {E1,E2,E3,E4,E5}、32B 载荷、无 ACK、1Mbps
  * 必须与飞控端接收配置一致，详见 docs/02_遥控协议说明.md
  ******************************************************************/
 #include "nrf24l01.h"
 #include "spi.h"
+#include "delay.h"
 #include <string.h>
 
 /* 发送地址（与飞控端 RX_ADDR_P0 相同） */
@@ -138,7 +139,7 @@ u8 NRF24L01_TxPacket(u8 *txbuf)
     return 0xff; // 未知原因失败
 }
 
-/* 配置为 TX 模式（无自动应答，2Mbps，0dBm） */
+/* 配置为 TX 模式（无自动应答，1Mbps，0dBm） */
 void TX_Mode(void)
 {
     Clr_NRF24L01_CE;
@@ -154,12 +155,20 @@ void TX_Mode(void)
     Set_NRF24L01_CE;                                   // CE 拉高，等待发送
 }
 
-/* 初始化：IO → 在位检测 → TX 模式 */
-void NRF24L01_init(void)
+/* 初始化：IO → 在位检测（带重试上界）→ TX 模式
+ * 返回 0=正常，1=自检失败（不再死等，由调用方置故障标志报警） */
+u8 NRF24L01_init(void)
 {
+    u8 retry = 20; /* 20 次 × 50ms = 1s 等待窗口，覆盖模块上电较慢的情况 */
+
     NRF24L01_Configuration();
-    while (NRF24L01_Check())
+    while (retry > 0)
     {
+        if (NRF24L01_Check() == 0)
+            break;
+        retry--;
+        delay_ms(50);
     }
     TX_Mode();
+    return (retry == 0) ? 1 : 0;
 }

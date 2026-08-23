@@ -37,6 +37,6 @@ u8 NRF24L01_Read_Reg(u8 regaddr);
 u8 NRF24L01_Write_Reg(u8 regaddr, u8 data);
 u8 NRF24L01_Check(void);
 u8 NRF24L01_TxPacket(u8 *txbuf);
-void NRF24L01_init(void);
+u8 NRF24L01_init(void); /* 返回 0=正常,1=自检失败(重试上界内未通过) */
 
 #endif
