@@ -9,7 +9,6 @@
 #include "spi.h"
 #include "tim.h"
 #include "adc.h"
-#include "usart.h"
 #include "nrf24l01.h"
 #include "eeprom.h"
 #include "remote.h"

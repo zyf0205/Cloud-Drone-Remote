@@ -444,11 +444,6 @@
               <FilePath>.\src\core\init.c</FilePath>
             </File>
             <File>
-              <FileName>sys.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\src\core\sys.c</FilePath>
-            </File>
-            <File>
               <FileName>delay.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\src\core\delay.c</FilePath>
@@ -607,11 +602,6 @@
               <FileName>tim.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\src\driver\tim.c</FilePath>
-            </File>
-            <File>
-              <FileName>usart.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\src\driver\usart.c</FilePath>
             </File>
           </Files>
         </Group>
