@@ -16,15 +16,15 @@
 /* I2C GPIO 初始化：开漏输出（板上有上拉电阻） */
 void IIC_Init(void)
 {
-    GPIO_InitTypeDef GPIO_InitStrucSUCCESS;
-    GPIO_InitStrucSUCCESS.GPIO_Pin   = SCL_PIN;
-    GPIO_InitStrucSUCCESS.GPIO_Speed = GPIO_Speed_50MHz;
-    GPIO_InitStrucSUCCESS.GPIO_Mode  = GPIO_Mode_Out_PP;
-    GPIO_Init(IIC_GPIO, &GPIO_InitStrucSUCCESS);
+    GPIO_InitTypeDef GPIO_InitStructure;
+    GPIO_InitStructure.GPIO_Pin   = SCL_PIN;
+    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+    GPIO_InitStructure.GPIO_Mode  = GPIO_Mode_Out_PP;
+    GPIO_Init(IIC_GPIO, &GPIO_InitStructure);
 
-    GPIO_InitStrucSUCCESS.GPIO_Pin  = SCL_PIN | SDA_PIN;
-    GPIO_InitStrucSUCCESS.GPIO_Mode = GPIO_Mode_Out_OD;
-    GPIO_Init(IIC_GPIO, &GPIO_InitStrucSUCCESS);
+    GPIO_InitStructure.GPIO_Pin  = SCL_PIN | SDA_PIN;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_OD;
+    GPIO_Init(IIC_GPIO, &GPIO_InitStructure);
 }
 
 /* 起始信号：返回 FAILED 表示总线忙 */
@@ -187,7 +187,7 @@ int8_t IIC_Write_Bytes(uint8_t addr, uint8_t reg, uint8_t *data, uint8_t len)
 /* 读设备寄存器一个字节 */
 int8_t IIC_Read_One_Byte(uint8_t addr, uint8_t reg)
 {
-    uint8_t recive = 0;
+    uint8_t receive = 0;
     if (I2c_Start() == FAILED)
         return FAILED;
     I2c_SendByte(addr);
@@ -206,10 +206,10 @@ int8_t IIC_Read_One_Byte(uint8_t addr, uint8_t reg)
         I2c_Stop();
         return FAILED;
     }
-    recive = I2c_ReadByte();
+    receive = I2c_ReadByte();
     I2c_NoAck();
     I2c_Stop();
-    return recive;
+    return receive;
 }
 
 /* 写设备寄存器一个字节 */
