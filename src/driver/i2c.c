@@ -5,25 +5,24 @@
 #include "i2c.h"
 
 #define SUCCESS 0
-#define FAILED 1
+#define FAILED  1
 
-#define I2c_delay()                \
-    {                              \
-        volatile unsigned char i;  \
-        for (i = 5; i > 0; i--)    \
-            ;                      \
+#define I2c_delay()               \
+    {                             \
+        volatile unsigned char i; \
+        for (i = 5; i > 0; i--);  \
     }
 
 /* I2C GPIO 初始化：开漏输出（板上有上拉电阻） */
 void IIC_Init(void)
 {
     GPIO_InitTypeDef GPIO_InitStrucSUCCESS;
-    GPIO_InitStrucSUCCESS.GPIO_Pin = SCL_PIN;
+    GPIO_InitStrucSUCCESS.GPIO_Pin   = SCL_PIN;
     GPIO_InitStrucSUCCESS.GPIO_Speed = GPIO_Speed_50MHz;
-    GPIO_InitStrucSUCCESS.GPIO_Mode = GPIO_Mode_Out_PP;
+    GPIO_InitStrucSUCCESS.GPIO_Mode  = GPIO_Mode_Out_PP;
     GPIO_Init(IIC_GPIO, &GPIO_InitStrucSUCCESS);
 
-    GPIO_InitStrucSUCCESS.GPIO_Pin = SCL_PIN | SDA_PIN;
+    GPIO_InitStrucSUCCESS.GPIO_Pin  = SCL_PIN | SDA_PIN;
     GPIO_InitStrucSUCCESS.GPIO_Mode = GPIO_Mode_Out_OD;
     GPIO_Init(IIC_GPIO, &GPIO_InitStrucSUCCESS);
 }
@@ -137,7 +136,7 @@ static void I2c_SendByte(uint8_t byte)
 /* 读取一个字节 */
 static uint8_t I2c_ReadByte(void)
 {
-    uint8_t i = 8;
+    uint8_t i    = 8;
     uint8_t byte = 0;
 
     SDA_H;

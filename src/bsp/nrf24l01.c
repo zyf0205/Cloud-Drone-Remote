@@ -15,11 +15,11 @@
 const uint8_t TX_ADDRESS[] = {0xE1, 0xE2, 0xE3, 0xE4, 0xE5};
 const uint8_t RX_ADDRESS[] = {0xE1, 0xE2, 0xE3, 0xE4, 0xE5};
 
-#define Set_NRF24L01_CSN (GPIOB->BSRR = GPIO_Pin_12) // PB12
-#define Clr_NRF24L01_CSN (GPIOB->BRR  = GPIO_Pin_12)
-#define Set_NRF24L01_CE  (GPIOA->BSRR = GPIO_Pin_11) // PA11
-#define Clr_NRF24L01_CE  (GPIOA->BRR  = GPIO_Pin_11)
-#define READ_NRF24L01_IRQ (GPIOA->IDR & GPIO_Pin_8)  // PA8，低电平有效
+#define Set_NRF24L01_CSN  (GPIOB->BSRR = GPIO_Pin_12) // PB12
+#define Clr_NRF24L01_CSN  (GPIOB->BRR = GPIO_Pin_12)
+#define Set_NRF24L01_CE   (GPIOA->BSRR = GPIO_Pin_11) // PA11
+#define Clr_NRF24L01_CE   (GPIOA->BRR = GPIO_Pin_11)
+#define READ_NRF24L01_IRQ (GPIOA->IDR & GPIO_Pin_8) // PA8，低电平有效
 
 /* NRF24L01 IO 初始化 */
 void NRF24L01_Configuration(void)
@@ -27,14 +27,14 @@ void NRF24L01_Configuration(void)
     GPIO_InitTypeDef GPIO_InitStructure;
 
     RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
-    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_11; // CE
-    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+    GPIO_InitStructure.GPIO_Pin   = GPIO_Pin_11; // CE
+    GPIO_InitStructure.GPIO_Mode  = GPIO_Mode_Out_PP;
     GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
     GPIO_Init(GPIOA, &GPIO_InitStructure);
 
     RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
-    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_12; // CSN
-    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+    GPIO_InitStructure.GPIO_Pin   = GPIO_Pin_12; // CSN
+    GPIO_InitStructure.GPIO_Mode  = GPIO_Mode_Out_PP;
     GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
     GPIO_Init(GPIOB, &GPIO_InitStructure);
 
@@ -42,8 +42,8 @@ void NRF24L01_Configuration(void)
     Set_NRF24L01_CSN;
 
     /* IRQ 输入上拉 */
-    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_8;
-    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
+    GPIO_InitStructure.GPIO_Pin   = GPIO_Pin_8;
+    GPIO_InitStructure.GPIO_Mode  = GPIO_Mode_IPU;
     GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
     GPIO_Init(GPIOA, &GPIO_InitStructure);
     GPIO_SetBits(GPIOA, GPIO_Pin_8);
@@ -123,8 +123,7 @@ u8 NRF24L01_TxPacket(u8 *txbuf)
     Clr_NRF24L01_CE;
     NRF24L01_Write_Buf(WR_TX_PLOAD, txbuf, TX_PLOAD_WIDTH);
     Set_NRF24L01_CE;
-    while (READ_NRF24L01_IRQ != 0)
-        ; // 等待发送完成
+    while (READ_NRF24L01_IRQ != 0); // 等待发送完成
     state = NRF24L01_Read_Reg(STATUS);
     NRF24L01_Write_Reg(SPI_WRITE_REG + STATUS, state); // 清 TX_DS / MAX_RT 标志
     if (state & MAX_TX)                                // 达到最大重发次数

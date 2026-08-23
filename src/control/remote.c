@@ -24,14 +24,14 @@ static struct
     int16_t yaw;
 } offset = {0};
 
-#define KEY_AUX1   GPIO_Pin_15 /* GPIOA */
-#define KEY_AUX2   GPIO_Pin_11 /* GPIOB */
-#define KEY_AUX3   GPIO_Pin_14 /* GPIOC */
-#define KEY_AUX4   GPIO_Pin_15 /* GPIOC */
-#define KEY_FRONT  GPIO_Pin_0  /* GPIOB */
-#define KEY_BACK   GPIO_Pin_1  /* GPIOB */
-#define KEY_LEFT   GPIO_Pin_6  /* GPIOA */
-#define KEY_RIGHT  GPIO_Pin_7  /* GPIOA */
+#define KEY_AUX1  GPIO_Pin_15 /* GPIOA */
+#define KEY_AUX2  GPIO_Pin_11 /* GPIOB */
+#define KEY_AUX3  GPIO_Pin_14 /* GPIOC */
+#define KEY_AUX4  GPIO_Pin_15 /* GPIOC */
+#define KEY_FRONT GPIO_Pin_0  /* GPIOB */
+#define KEY_BACK  GPIO_Pin_1  /* GPIOB */
+#define KEY_LEFT  GPIO_Pin_6  /* GPIOA */
+#define KEY_RIGHT GPIO_Pin_7  /* GPIOA */
 
 static void key(void);
 
@@ -43,8 +43,8 @@ void key_init(void)
     AFIO->MAPR = 0X02000000; // 关闭 JTAG，仅保留 SWD
     RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_GPIOB | RCC_APB2Periph_GPIOC, ENABLE);
 
-    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_6 | GPIO_Pin_7 | GPIO_Pin_4 | GPIO_Pin_15;
-    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU; // 输入上拉
+    GPIO_InitStructure.GPIO_Pin   = GPIO_Pin_6 | GPIO_Pin_7 | GPIO_Pin_4 | GPIO_Pin_15;
+    GPIO_InitStructure.GPIO_Mode  = GPIO_Mode_IPU; // 输入上拉
     GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
     GPIO_Init(GPIOA, &GPIO_InitStructure);
     GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_11;
@@ -59,12 +59,12 @@ void RC_INIT(void)
 {
     if (g_boot_fault & FAULT_EEPROM)
     {
-        offset.roll = 0;
+        offset.roll  = 0;
         offset.pitch = 0;
     }
     else
     {
-        offset.roll = read_AT24C02(ROLL_ADDR_OFFSET);   // 读取 Roll 微调
+        offset.roll  = read_AT24C02(ROLL_ADDR_OFFSET);  // 读取 Roll 微调
         offset.pitch = read_AT24C02(PITCH_ADDR_OFFSET); // 读取 Pitch 微调
     }
     key_init();
@@ -81,7 +81,7 @@ static void NRF_SEND(void)
 
     for (i = 4; i < 26; i += 2)
     {
-        tx_data[i] = *((uint8_t *)&Remote + i - 3);  // 高位在前
+        tx_data[i]     = *((uint8_t *)&Remote + i - 3); // 高位在前
         tx_data[i + 1] = *((uint8_t *)&Remote + i - 4); // 低位在后
     }
     tx_data[31] = 0;
@@ -108,24 +108,24 @@ void RC_Analy(void)
     /* ADC_ConvertedValue 由 DMA 循环刷新，直接读取 */
     Remote.thr = (uint16_t)(0.20f * ADC_ConvertedValue[1]) + 1000 + offset.thr; // 油门
     Remote.thr = (uint16_t)(Remote.thr * 0.25f + 0.75f * last_thr);             // 一阶低通
-    last_thr = Remote.thr;
+    last_thr   = Remote.thr;
 
     Remote.pitch = 1000 + (uint16_t)(0.25f * ADC_ConvertedValue[2]) + offset.pitch; // 俯仰
     Remote.pitch = (uint16_t)(Remote.pitch * 0.25f + 0.75f * last_pitch);
-    last_pitch = Remote.pitch;
+    last_pitch   = Remote.pitch;
 
     Remote.yaw = 1000 + (uint16_t)(0.25f * ADC_ConvertedValue[0]) + offset.yaw; // 偏航
     Remote.yaw = (uint16_t)(Remote.yaw * 0.25f + 0.75f * last_yaw);
-    last_yaw = Remote.yaw;
+    last_yaw   = Remote.yaw;
 
     Remote.roll = 1000 + (uint16_t)(0.25f * ADC_ConvertedValue[3]) + offset.roll; // 横滚
     Remote.roll = (uint16_t)(Remote.roll * 0.25f + 0.75f * last_roll);
-    last_roll = Remote.roll;
+    last_roll   = Remote.roll;
 
-    Remote.thr = rc_clamp(Remote.thr);
+    Remote.thr   = rc_clamp(Remote.thr);
     Remote.pitch = rc_clamp(Remote.pitch);
-    Remote.roll = rc_clamp(Remote.roll);
-    Remote.yaw = rc_clamp(Remote.yaw);
+    Remote.roll  = rc_clamp(Remote.roll);
+    Remote.yaw   = rc_clamp(Remote.yaw);
 
     key();      // 按键扫描
     NRF_SEND(); // 发送到飞控端
@@ -134,9 +134,7 @@ void RC_Analy(void)
 /* 全部按键（4 AUX + 4 微调）同时按下的检测 */
 static uint8_t keys_all_pressed(void)
 {
-    return ((GPIOA->IDR & (GPIO_Pin_6 | GPIO_Pin_7 | GPIO_Pin_15)) == (GPIO_Pin_6 | GPIO_Pin_7 | GPIO_Pin_15))
-        && ((GPIOB->IDR & (GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_11)) == (GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_11))
-        && ((GPIOC->IDR & (GPIO_Pin_14 | GPIO_Pin_15)) == (GPIO_Pin_14 | GPIO_Pin_15));
+    return ((GPIOA->IDR & (GPIO_Pin_6 | GPIO_Pin_7 | GPIO_Pin_15)) == (GPIO_Pin_6 | GPIO_Pin_7 | GPIO_Pin_15)) && ((GPIOB->IDR & (GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_11)) == (GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_11)) && ((GPIOC->IDR & (GPIO_Pin_14 | GPIO_Pin_15)) == (GPIO_Pin_14 | GPIO_Pin_15));
 }
 
 /* 按键扫描（状态机） */

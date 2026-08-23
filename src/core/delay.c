@@ -25,6 +25,5 @@ static uint32_t last_systick;
 void delay_ms(uint16_t nms)
 {
     last_systick = SysTick_count;
-    while (SysTick_count - last_systick < nms)
-        ;
+    while (SysTick_count - last_systick < nms);
 }

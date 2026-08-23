@@ -7,8 +7,8 @@
 #include "i2c.h"
 
 #define AT24C02_ADDR 0xA0 // AT24C02 I2C 地址
-#define SUCCESS 0
-#define FAILED 1
+#define SUCCESS      0
+#define FAILED       1
 
 /* 读 2 字节微调值 */
 uint16_t read_AT24C02(uint8_t addr)

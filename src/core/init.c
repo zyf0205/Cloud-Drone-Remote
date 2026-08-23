@@ -13,9 +13,8 @@ void RCC_Configuration(void)
 {
     RCC_DeInit(); // 将 RCC 寄存器设置为默认值
 
-    RCC_HSICmd(ENABLE); // 使能 HSI
-    while (RCC_GetFlagStatus(RCC_FLAG_HSIRDY) == RESET)
-        ; // 等待 HSI 使能成功
+    RCC_HSICmd(ENABLE);                                  // 使能 HSI
+    while (RCC_GetFlagStatus(RCC_FLAG_HSIRDY) == RESET); // 等待 HSI 使能成功
 
     // 等待内部时钟,使能预取缓冲区
     FLASH_PrefetchBufferCmd(FLASH_PrefetchBuffer_Enable);
@@ -28,18 +27,13 @@ void RCC_Configuration(void)
     // 设置 PLL 时钟源及倍频系数 48MHz
     RCC_PLLConfig(RCC_PLLSource_HSI_Div2, RCC_PLLMul_12);
     RCC_PLLCmd(ENABLE);
-    while (RCC_GetFlagStatus(RCC_FLAG_PLLRDY) == RESET)
-        ;
+    while (RCC_GetFlagStatus(RCC_FLAG_PLLRDY) == RESET);
 
     // 设置系统时钟 SYSCLK 为 PLL
     RCC_SYSCLKConfig(RCC_SYSCLKSource_PLLCLK);
-    while (RCC_GetSYSCLKSource() != 0x08)
-        ;
+    while (RCC_GetSYSCLKSource() != 0x08);
 
-    RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1 | RCC_APB2Periph_GPIOA
-                               | RCC_APB2Periph_GPIOB | RCC_APB2Periph_GPIOC
-                               | RCC_APB2Periph_ADC1 | RCC_APB2Periph_AFIO
-                               | RCC_APB2Periph_SPI1,
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1 | RCC_APB2Periph_GPIOA | RCC_APB2Periph_GPIOB | RCC_APB2Periph_GPIOC | RCC_APB2Periph_ADC1 | RCC_APB2Periph_AFIO | RCC_APB2Periph_SPI1,
                            ENABLE);
 
     RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART3 | RCC_APB1Periph_I2C1 | RCC_APB1Periph_TIM3, ENABLE);
@@ -51,8 +45,8 @@ void BEEP_INIT(void)
     GPIO_InitTypeDef GPIO_InitStructure;
 
     RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
-    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_12;       // PA12
-    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP; // 推挽输出
+    GPIO_InitStructure.GPIO_Pin   = GPIO_Pin_12;      // PA12
+    GPIO_InitStructure.GPIO_Mode  = GPIO_Mode_Out_PP; // 推挽输出
     GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
     GPIO_Init(GPIOA, &GPIO_InitStructure);
 

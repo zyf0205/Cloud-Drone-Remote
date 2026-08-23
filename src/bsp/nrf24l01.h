@@ -4,7 +4,7 @@
 #include "stm32f10x.h"
 
 /* 地址与载荷宽度 */
-#define TX_ADR_WIDTH   5  // 5 字节地址
+#define TX_ADR_WIDTH   5 // 5 字节地址
 #define RX_ADR_WIDTH   5
 #define TX_PLOAD_WIDTH 32 // 32 字节用户数据
 
@@ -22,7 +22,7 @@
 #define RF_SETUP   0x06 // bit3: 速率(0=1M,1=2M); bit2: 1=最大功率
 #define STATUS     0x07 // bit4: MAX_RT; bit5: TX_DS; bit6: RX_DR
 #define RX_ADDR_P0 0x0A // 通道 0 接收地址
-#define TX_ADDR     0x10 // 发送地址
+#define TX_ADDR    0x10 // 发送地址
 
 /* 状态位 */
 #define MAX_TX 0x10 // 达到最大重发次数
