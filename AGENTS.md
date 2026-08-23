@@ -45,6 +45,11 @@ Cloud-Drone-Remote/           # 遥控器（发送端）工程，结构与 Cloud
 
 ## 重要说明
 - FreeRTOS 版本：V9.0.0（RVDS/ARM_CM3 移植，Keil AC5 编译），与飞控端一致
+- **看门狗（IWDG）**：LSI 标称 40kHz，分频 128、重载 800 → 超时约 2.56s。
+  在 RCTask 启动时开狗（task_rc.c），**每 10ms 周期喂一次**；任务任何环节
+  挂死 → 约 2.6s 内复位重启恢复发送（快于飞控端 5s 失联门限）。
+  main.c 配置了 DBGMCU 断点冻结 IWDG，调试不受影响。
+  **修改 RCTask 循环时注意：新增的阻塞调用总时长不得超过 ~2s，否则会被复位**
 - 系统时钟：**HSI 内部时钟 48MHz**（8MHz/2 × 12，遥控器无外部晶振）；
   `system_stm32f10x.c` 已定义 `SYSCLK_FREQ_48MHz`，`SystemCoreClock` 为真实主频
 - NVIC 优先级分组：Group4；TIM3=6（1ms 毫秒时钟，不调 API）、SysTick/PendSV=15（内核）

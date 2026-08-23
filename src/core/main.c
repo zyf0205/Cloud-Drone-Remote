@@ -1,5 +1,6 @@
 #include "all_define.h"
 #include "app_tasks.h"
+#include "stm32f10x_dbgmcu.h"
 
 /*
  * FreeRTOS 版本主入口：
@@ -14,6 +15,9 @@ int main(void)
     NVIC_PriorityGroupConfig(NVIC_PriorityGroup_4);
     RCC_Configuration(); // HSI PLL 48MHz
     cycleCounterInit();  // TIM3 1kHz 毫秒时钟
+
+    /* 调试器断点停机时冻结 IWDG(看门狗在 RCTask 内启动),避免调试中被复位 */
+    DBGMCU_Config(DBGMCU_IWDG_STOP, ENABLE);
 
     ALL_Init();
 
