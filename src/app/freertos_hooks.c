@@ -18,3 +18,12 @@ void vApplicationMallocFailedHook(void)
 {
     BEEP_H;
 }
+
+/*
+ * 空闲任务钩子：WFI 睡眠降功耗（遥控器电池供电，收益直接）。
+ * 每 10ms 任务节拍/中断会自动唤醒
+ */
+void vApplicationIdleHook(void)
+{
+    __WFI();
+}

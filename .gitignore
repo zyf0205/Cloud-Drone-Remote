@@ -73,3 +73,6 @@ Desktop.ini
 
 # Scatter files (linker generated)
 *.sct
+
+# UV4 command-line build log
+build_log.txt
