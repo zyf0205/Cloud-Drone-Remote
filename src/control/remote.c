@@ -17,7 +17,8 @@
 #define RC_CH_MIN    1000u  /* 通道量程下限 */
 #define RC_CH_MAX    2000u  /* 通道量程上限 */
 #define STICK_SCALE  0.25f  /* ADC(0~4095)→1000~2000 满量程映射系数 */
-#define THR_SCALE    0.20f  /* 油门独立缩放(限制满杆输出,与其他通道不同) */
+#define THR_SCALE    0.25f  /* 油门缩放(独立系数便于单独调整;0.20 时满杆仅 ~1819,
+                               与解锁手势 >1800 的余量过窄,曾长期贴边) */
 #define RC_LPF_ALPHA 0.25f  /* 通道一阶低通系数(0.25 新值 + 0.75 旧值) */
 
 /* ADC DMA 缓冲通道映射(见 adc.c) */
