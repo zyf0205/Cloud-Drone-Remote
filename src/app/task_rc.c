@@ -1,59 +1,70 @@
-#include "all_define.h"
+/*******************************************************************
+ * Task_RC_Tx — 核心无线控制与发送任务（优先级 4，10ms 严格周期）
+ *
+ * 单一硬件所有权：唯一允许操作 NRF24L01+ 模块的任务。
+ *
+ * 每 10ms（100Hz）串行执行纯硬实时主链路：
+ *   1. 读取 ADC1+DMA 后台循环刷新的 4 路摇杆快照；
+ *   2. 合并微调与 AUX 状态 → 一阶低通滤波 → 钳位 [1000,2000] → 组 32B 大端帧；
+ *   3. 若 NRF 正常则无线发送；遇到偶发超时自动清 FIFO，连续超时则尝试软恢复，
+ *      若硬件已脱焊/掉电则置位 FAULT_NRF 交由 Task_Buzzer 报警；
+ *   4. 向 Task_Monitor 上报心跳位 HEARTBEAT_BIT_RC_TX。
+ *
+ * 实时性保障：
+ *   本任务内无任何 EEPROM 写延时、按键消抖或蜂鸣器控制，发包周期抖动极低。
+ ******************************************************************/
 #include "app_tasks.h"
+#include "adc.h"
 #include "remote.h"
-#include "stm32f10x_iwdg.h"
+#include "nrf24l01.h"
 
-/*
- * 启动自检故障报警（非阻塞，每 10ms 调用，1s 一个循环）：
- * NRF 故障 = 长鸣 0.4s（无法发送，禁止使用）
- * 仅 EEPROM 故障 = 每秒两短鸣（微调不可用，仍可飞行）
- * 与按键提示音偶发交叠时以本函数为准，不影响故障提醒
- */
-#define FAULT_BEEP_PERIOD_MS  1000u /* 报警循环周期 */
-#define NRF_BEEP_ON_MS        400u  /* NRF 故障长鸣时长 */
-#define EEPROM_BEEP1_ON_MS    100u  /* EEPROM 故障第一短鸣时长 */
-#define EEPROM_BEEP2_START_MS 200u  /* EEPROM 故障第二短鸣起点 */
-#define EEPROM_BEEP2_ON_MS    100u  /* EEPROM 故障第二短鸣时长 */
+/* 连续发送超时达到该次数（20 × 10ms = 200ms）后触发 NRF 自检与恢复 */
+#define NRF_CONSEC_TIMEOUT_LIMIT 20u
 
-static void fault_beep(void)
+void Task_RC_Tx(void *param)
 {
-    uint32_t t = SysTick_count % FAULT_BEEP_PERIOD_MS;
-    uint8_t on = 0;
+    TickType_t last_wake = xTaskGetTickCount();
+    uint16_t adc_snap[ADC_CH_COUNT];
+    uint8_t tx_frame[RC_FRAME_LEN];
+    uint8_t timeout_cnt = 0u;
 
-    if (g_boot_fault & FAULT_NRF)
-        on = (t < NRF_BEEP_ON_MS);
-    else if (g_boot_fault & FAULT_EEPROM)
-        on = (t < EEPROM_BEEP1_ON_MS) || (t >= EEPROM_BEEP2_START_MS && t < EEPROM_BEEP2_START_MS + EEPROM_BEEP2_ON_MS);
-
-    if (on)
-        BEEP_H;
-    else
-        BEEP_L;
-}
-
-/*
- * 遥控任务：10ms 周期（与旧版裸机 SysTick 分频调度一致）。
- * 采集 ADC 摇杆 → 滤波钳位 → 按键扫描 → NRF24L01 发送 32 字节帧。
- * 含 IWDG 看门狗：任务启动后才开狗,此后每周期喂一次;
- * 任何环节挂死 → 约 2.6s 内复位重启恢复发送,
- * 远快于飞控端 5s 失联门限,空中链路可自动恢复。
- */
-void RCTask(void *param)
-{
-    TickType_t lastWakeTime = xTaskGetTickCount();
-
-    /* IWDG 独立看门狗:LSI 标称 40kHz,分频 128、重载 800 → 超时约 2.56s */
-    IWDG_WriteAccessCmd(IWDG_WriteAccess_Enable);
-    IWDG_SetPrescaler(IWDG_Prescaler_128);
-    IWDG_SetReload(800);
-    IWDG_ReloadCounter();
-    IWDG_Enable();
+    (void)param;
 
     for (;;)
     {
-        vTaskDelayUntil(&lastWakeTime, pdMS_TO_TICKS(10));
-        IWDG_ReloadCounter(); /* 喂狗 */
-        fault_beep();         /* 启动自检故障周期蜂鸣提醒 */
-        RC_Analy();
+        vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(TASK_PERIOD_RC_TX_MS));
+
+        /* 1. 采集 4 路摇杆快照并生成 32 字节标准协议帧 */
+        ADC1_ReadSnapshot(adc_snap);
+        RC_UpdateSticksAndBuildFrame(adc_snap, tx_frame);
+
+        /* 2. NRF 无线发送与运行期超时自愈 */
+        if ((g_boot_fault & FAULT_NRF) == 0u)
+        {
+            u8 tx_ret = NRF24L01_TxPacket(tx_frame);
+            if (tx_ret == TX_OK)
+            {
+                timeout_cnt = 0u;
+            }
+            else if (tx_ret == NRF_TX_TIMEOUT)
+            {
+                timeout_cnt++;
+                if (timeout_cnt >= NRF_CONSEC_TIMEOUT_LIMIT)
+                {
+                    timeout_cnt = 0u;
+                    if (NRF24L01_Check() == 0u)
+                    {
+                        TX_Mode(); /* 模块仍在位，重新下发 TX 配置尝试自愈 */
+                    }
+                    else
+                    {
+                        g_boot_fault |= FAULT_NRF; /* 模块已离线，停发并触发故障报警 */
+                    }
+                }
+            }
+        }
+
+        /* 3. 上报本周期存活心跳 */
+        App_NotifyHeartbeat(HEARTBEAT_BIT_RC_TX);
     }
 }

@@ -1,15 +1,21 @@
 /*******************************************************************
- * ADC + DMA：4 通道摇杆采集
- * PA0 = Yaw, PA1 = THR, PA2 = Pitch, PA3 = Roll（ADC 通道 0~3）
- * DMA1_Channel1 循环模式，ADC_ConvertedValue[] 自动刷新
+ * ADC1 + DMA1 循环采集驱动（4 路摇杆电位器）
+ *
+ * 硬件映射：
+ *   PA0 = Yaw（通道 0）  PA1 = THR（通道 1）
+ *   PA2 = Pitch（通道 2）PA3 = Roll（通道 3）
+ *
+ * 工作方式：
+ *   ADC1 连续扫描 4 通道，DMA1_Channel1 循环将转换结果写入
+ *   ADC_ConvertedValue[4]，CPU 无需轮询等待转换完成。
  ******************************************************************/
 #include "adc.h"
 
 #define ADC1_DR_Address ((u32)0x40012400 + 0x4c)
 
-__IO uint16_t ADC_ConvertedValue[4];
+__IO uint16_t ADC_ConvertedValue[ADC_CH_COUNT];
 
-/* ADC 引脚初始化：PA0~PA3 模拟输入 */
+/* 配置 PA0~PA3 为模拟输入，并打开 DMA1 / ADC1 / GPIOA 时钟 */
 void ADC1_GPIO_Config(void)
 {
     GPIO_InitTypeDef GPIO_InitStructure;
@@ -22,38 +28,38 @@ void ADC1_GPIO_Config(void)
     GPIO_Init(GPIOA, &GPIO_InitStructure);
 }
 
-/* ADC1 DMA 循环采集 4 通道，DMA 自动刷新内存，无需手动读取 */
+/* 配置 DMA1 通道 1 循环搬运与 ADC1 四通道连续扫描，校准后启动转换 */
 void ADC1_Mode_Config(void)
 {
     DMA_InitTypeDef DMA_InitStructure;
     ADC_InitTypeDef ADC_InitStructure;
 
-    /* DMA 通道 1：外设 ADC1 数据寄存器 → 内存 ADC_ConvertedValue[4] */
+    /* 1. 配置 DMA1_Channel1：外设 ADC1->DR → 内存 ADC_ConvertedValue[4] */
     DMA_DeInit(DMA1_Channel1);
     DMA_InitStructure.DMA_PeripheralBaseAddr = ADC1_DR_Address;
-    DMA_InitStructure.DMA_MemoryBaseAddr     = (u32)&ADC_ConvertedValue;
+    DMA_InitStructure.DMA_MemoryBaseAddr     = (u32)&ADC_ConvertedValue[0];
     DMA_InitStructure.DMA_DIR                = DMA_DIR_PeripheralSRC;
-    DMA_InitStructure.DMA_BufferSize         = 4;
-    DMA_InitStructure.DMA_PeripheralInc      = DMA_PeripheralInc_Disable; // 外设地址固定
-    DMA_InitStructure.DMA_MemoryInc          = DMA_MemoryInc_Enable;      // 内存地址自增
+    DMA_InitStructure.DMA_BufferSize         = ADC_CH_COUNT;
+    DMA_InitStructure.DMA_PeripheralInc      = DMA_PeripheralInc_Disable; /* 外设地址固定 */
+    DMA_InitStructure.DMA_MemoryInc          = DMA_MemoryInc_Enable;      /* 内存地址自增 */
     DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_HalfWord;
     DMA_InitStructure.DMA_MemoryDataSize     = DMA_MemoryDataSize_HalfWord;
-    DMA_InitStructure.DMA_Mode               = DMA_Mode_Circular; // 循环采集
+    DMA_InitStructure.DMA_Mode               = DMA_Mode_Circular; /* 循环搬运 */
     DMA_InitStructure.DMA_Priority           = DMA_Priority_High;
     DMA_InitStructure.DMA_M2M                = DMA_M2M_Disable;
     DMA_Init(DMA1_Channel1, &DMA_InitStructure);
     DMA_Cmd(DMA1_Channel1, ENABLE);
 
-    /* ADC1 独立模式、扫描 + 连续转换、右对齐 */
+    /* 2. 配置 ADC1：独立模式、4 通道扫描 + 连续转换、右对齐 */
     ADC_InitStructure.ADC_Mode               = ADC_Mode_Independent;
-    ADC_InitStructure.ADC_ScanConvMode       = ENABLE; // 多通道扫描
+    ADC_InitStructure.ADC_ScanConvMode       = ENABLE;
     ADC_InitStructure.ADC_ContinuousConvMode = ENABLE;
     ADC_InitStructure.ADC_ExternalTrigConv   = ADC_ExternalTrigConv_None;
     ADC_InitStructure.ADC_DataAlign          = ADC_DataAlign_Right;
-    ADC_InitStructure.ADC_NbrOfChannel       = 4;
+    ADC_InitStructure.ADC_NbrOfChannel       = ADC_CH_COUNT;
     ADC_Init(ADC1, &ADC_InitStructure);
 
-    /* ADC 时钟 = PCLK2/8 = 6MHz（不超过 14MHz 上限） */
+    /* ADC 时钟 = PCLK2(48MHz) / 8 = 6MHz（低于 14MHz 规格上限） */
     RCC_ADCCLKConfig(RCC_PCLK2_Div8);
 
     ADC_RegularChannelConfig(ADC1, ADC_Channel_0, 1, ADC_SampleTime_55Cycles5);
@@ -64,12 +70,27 @@ void ADC1_Mode_Config(void)
     ADC_DMACmd(ADC1, ENABLE);
     ADC_Cmd(ADC1, ENABLE);
 
-    /* ADC 校准 */
+    /* 3. 上电硬件校准 */
     ADC_ResetCalibration(ADC1);
-    while (ADC_GetResetCalibrationStatus(ADC1));
+    while (ADC_GetResetCalibrationStatus(ADC1))
+    {
+    }
     ADC_StartCalibration(ADC1);
-    while (ADC_GetCalibrationStatus(ADC1));
+    while (ADC_GetCalibrationStatus(ADC1))
+    {
+    }
 
-    /* 启动软件转换，此后 DMA 循环刷新数据 */
+    /* 4. 触发软件启动，此后后台自动持续刷新 */
     ADC_SoftwareStartConvCmd(ADC1, ENABLE);
+}
+
+/* 拷贝一份 4 通道 ADC 快照（Cortex-M3 单次 16 位半字读取天然原子） */
+void ADC1_ReadSnapshot(uint16_t out[ADC_CH_COUNT])
+{
+    uint8_t i;
+
+    for (i = 0; i < ADC_CH_COUNT; i++)
+    {
+        out[i] = ADC_ConvertedValue[i];
+    }
 }

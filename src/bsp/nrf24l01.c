@@ -1,79 +1,69 @@
 /*******************************************************************
- * NRF24L01 无线模块驱动（遥控器端 = 发送端，TX 模式）
- * 控制脚：CE = PA11, CSN = PB12, IRQ = PA8
- * SPI（软件模拟）：PB13 = SCK, PB14 = MISO, PB15 = MOSI
+ * NRF24L01+ 无线模块板级驱动（遥控器发送端，单向 TX 模式）
  *
- * RF 参数：RF_CH=1、地址 {E1,E2,E3,E4,E5}、32B 载荷、无 ACK、1Mbps
- * 必须与飞控端接收配置一致，详见 docs/02_遥控协议说明.md
+ * 引脚分配：
+ *   控制脚：CE = PA11，CSN = PB12，IRQ = PA8（低电平有效）
+ *   软件SPI：PB13 = SCK，PB14 = MISO，PB15 = MOSI
+ *
+ * 与飞控端对接参数（必须两端严格一致，详见 docs/02_遥控协议说明.md）：
+ *   RF_CH = 1、地址 {0xE1,0xE2,0xE3,0xE4,0xE5}、32B 载荷、无 ACK、1Mbps / 0dBm
+ *
+ * 所有权说明：
+ *   调度器启动后仅由 Task_RC_Tx 独占访问，无需额外总线锁。
  ******************************************************************/
 #include "nrf24l01.h"
 #include "spi.h"
 #include "delay.h"
-#include <string.h>
 
-/* 发送地址（与飞控端 RX_ADDR_P0 相同） */
-const uint8_t TX_ADDRESS[] = {0xE1, 0xE2, 0xE3, 0xE4, 0xE5};
-const uint8_t RX_ADDRESS[] = {0xE1, 0xE2, 0xE3, 0xE4, 0xE5};
+/* 等待单帧发送完成（IRQ 拉低）的软件超时上限（1Mbps 发 32B 实测 < 0.6ms） */
+#define NRF_TX_TIMEOUT_MS 5u
+/* 上电在位检测重试次数与间隔（20 × 50ms = 1s 窗口，兼容电源爬坡较慢的模块） */
+#define NRF_INIT_RETRY_MAX   20u
+#define NRF_INIT_RETRY_MS    50u
 
-#define Set_NRF24L01_CSN  (GPIOB->BSRR = GPIO_Pin_12) // PB12
+/* 射频地址（与飞控端 RX_ADDR_P0 严格一致） */
+static const uint8_t TX_ADDRESS[TX_ADR_WIDTH] = {0xE1, 0xE2, 0xE3, 0xE4, 0xE5};
+static const uint8_t RX_ADDRESS[RX_ADR_WIDTH] = {0xE1, 0xE2, 0xE3, 0xE4, 0xE5};
+
+#define Set_NRF24L01_CSN  (GPIOB->BSRR = GPIO_Pin_12)
 #define Clr_NRF24L01_CSN  (GPIOB->BRR = GPIO_Pin_12)
-#define Set_NRF24L01_CE   (GPIOA->BSRR = GPIO_Pin_11) // PA11
+#define Set_NRF24L01_CE   (GPIOA->BSRR = GPIO_Pin_11)
 #define Clr_NRF24L01_CE   (GPIOA->BRR = GPIO_Pin_11)
-#define READ_NRF24L01_IRQ (GPIOA->IDR & GPIO_Pin_8) // PA8，低电平有效
+#define READ_NRF24L01_IRQ (GPIOA->IDR & GPIO_Pin_8)
 
-/* NRF24L01 IO 初始化 */
+/* 初始化 NRF 控制引脚与底层软件 SPI */
 void NRF24L01_Configuration(void)
 {
     GPIO_InitTypeDef GPIO_InitStructure;
 
-    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
-    GPIO_InitStructure.GPIO_Pin   = GPIO_Pin_11; // CE
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_GPIOB, ENABLE);
+
+    /* CE (PA11) 推挽输出 */
+    GPIO_InitStructure.GPIO_Pin   = GPIO_Pin_11;
     GPIO_InitStructure.GPIO_Mode  = GPIO_Mode_Out_PP;
     GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
     GPIO_Init(GPIOA, &GPIO_InitStructure);
 
-    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
-    GPIO_InitStructure.GPIO_Pin   = GPIO_Pin_12; // CSN
-    GPIO_InitStructure.GPIO_Mode  = GPIO_Mode_Out_PP;
-    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+    /* CSN (PB12) 推挽输出 */
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_12;
     GPIO_Init(GPIOB, &GPIO_InitStructure);
 
-    Set_NRF24L01_CE;
-    Set_NRF24L01_CSN;
-
-    /* IRQ 输入上拉 */
-    GPIO_InitStructure.GPIO_Pin   = GPIO_Pin_8;
-    GPIO_InitStructure.GPIO_Mode  = GPIO_Mode_IPU;
-    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+    /* IRQ (PA8) 上拉输入（发送完成时模块将其拉低） */
+    GPIO_InitStructure.GPIO_Pin  = GPIO_Pin_8;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
     GPIO_Init(GPIOA, &GPIO_InitStructure);
     GPIO_SetBits(GPIOA, GPIO_Pin_8);
 
-    SPI_Config(); // 初始化软件 SPI
+    SPI_Config();
     Clr_NRF24L01_CE;
     Set_NRF24L01_CSN;
 }
 
-/* 检测 NRF24L01 是否在位：写读 5 字节比对 */
-u8 NRF24L01_Check(void)
-{
-    u8 buf[5] = {0XA5, 0XA5, 0XA5, 0XA5, 0XA5};
-    u8 buf1[5];
-    u8 i;
-
-    NRF24L01_Write_Buf(SPI_WRITE_REG + TX_ADDR, buf, 5);
-    NRF24L01_Read_Buf(TX_ADDR, buf1, 5);
-    for (i = 0; i < 5; i++)
-        if (buf1[i] != 0XA5)
-            break;
-    if (i != 5)
-        return 1; // 不在位
-    return 0;     // 在位
-}
-
-/* 写寄存器 */
+/* 写单个寄存器，返回当前 STATUS */
 u8 NRF24L01_Write_Reg(u8 regaddr, u8 data)
 {
     u8 status;
+
     Clr_NRF24L01_CSN;
     status = SPI_RW(regaddr);
     SPI_RW(data);
@@ -81,93 +71,143 @@ u8 NRF24L01_Write_Reg(u8 regaddr, u8 data)
     return status;
 }
 
-/* 读寄存器 */
+/* 读单个寄存器 */
 u8 NRF24L01_Read_Reg(u8 regaddr)
 {
     u8 reg_val;
+
     Clr_NRF24L01_CSN;
     SPI_RW(regaddr);
-    reg_val = SPI_RW(0XFF);
+    reg_val = SPI_RW(0xFFu);
     Set_NRF24L01_CSN;
     return reg_val;
 }
 
-/* 读定长数据 */
+/* 连续读取寄存器/FIFO 定长数据 */
 u8 NRF24L01_Read_Buf(u8 regaddr, u8 *pBuf, u8 datalen)
 {
-    u8 status, u8_ctr;
+    u8 status;
+    u8 i;
+
     Clr_NRF24L01_CSN;
     status = SPI_RW(regaddr);
-    for (u8_ctr = 0; u8_ctr < datalen; u8_ctr++)
-        pBuf[u8_ctr] = SPI_RW(0XFF);
+    for (i = 0; i < datalen; i++)
+    {
+        pBuf[i] = SPI_RW(0xFFu);
+    }
     Set_NRF24L01_CSN;
     return status;
 }
 
-/* 写定长数据 */
-u8 NRF24L01_Write_Buf(u8 regaddr, u8 *pBuf, u8 datalen)
+/* 连续写入寄存器/FIFO 定长数据 */
+u8 NRF24L01_Write_Buf(u8 regaddr, const u8 *pBuf, u8 datalen)
 {
-    u8 status, u8_ctr;
+    u8 status;
+    u8 i;
+
     Clr_NRF24L01_CSN;
     status = SPI_RW(regaddr);
-    for (u8_ctr = 0; u8_ctr < datalen; u8_ctr++)
-        SPI_RW(*pBuf++);
+    for (i = 0; i < datalen; i++)
+    {
+        SPI_RW(pBuf[i]);
+    }
     Set_NRF24L01_CSN;
     return status;
 }
 
-/* 发送一帧数据：写 TX FIFO → CE 拉高 → 等待 IRQ 拉低（发送完成） */
-u8 NRF24L01_TxPacket(u8 *txbuf)
+/* 检测 NRF24L01+ 是否在位：向 TX_ADDR 写 5 字节 0xA5 并读回比对 */
+u8 NRF24L01_Check(void)
 {
-    u8 state;
-    Clr_NRF24L01_CE;
-    NRF24L01_Write_Buf(WR_TX_PLOAD, txbuf, TX_PLOAD_WIDTH);
-    Set_NRF24L01_CE;
-    while (READ_NRF24L01_IRQ != 0); // 等待发送完成
-    state = NRF24L01_Read_Reg(STATUS);
-    NRF24L01_Write_Reg(SPI_WRITE_REG + STATUS, state); // 清 TX_DS / MAX_RT 标志
-    if (state & MAX_TX)                                // 达到最大重发次数
+    static const u8 pattern[TX_ADR_WIDTH] = {0xA5u, 0xA5u, 0xA5u, 0xA5u, 0xA5u};
+    u8 readback[TX_ADR_WIDTH];
+    u8 i;
+
+    NRF24L01_Write_Buf(SPI_WRITE_REG + TX_ADDR, pattern, TX_ADR_WIDTH);
+    NRF24L01_Read_Buf(TX_ADDR, readback, TX_ADR_WIDTH);
+    for (i = 0; i < TX_ADR_WIDTH; i++)
     {
-        NRF24L01_Write_Reg(FLUSH_TX, 0xff); // 清 TX FIFO
-        return MAX_TX;
+        if (readback[i] != 0xA5u)
+            return 1u; /* 不在位或 SPI 异常 */
     }
-    if (state & TX_OK) // 发送成功
-    {
-        return TX_OK;
-    }
-    return 0xff; // 未知原因失败
+    return 0u; /* 在位正常 */
 }
 
-/* 配置为 TX 模式（无自动应答，1Mbps，0dBm） */
+/* 配置为单向 TX 模式（1Mbps / 0dBm / RF_CH=1 / 无自动应答 / CRC16） */
 void TX_Mode(void)
 {
     Clr_NRF24L01_CE;
-    NRF24L01_Write_Buf(SPI_WRITE_REG + TX_ADDR, (u8 *)TX_ADDRESS, TX_ADR_WIDTH);
-    NRF24L01_Write_Buf(SPI_WRITE_REG + RX_ADDR_P0, (u8 *)RX_ADDRESS, RX_ADR_WIDTH);
+    NRF24L01_Write_Buf(SPI_WRITE_REG + TX_ADDR, TX_ADDRESS, TX_ADR_WIDTH);
+    NRF24L01_Write_Buf(SPI_WRITE_REG + RX_ADDR_P0, RX_ADDRESS, RX_ADR_WIDTH);
 
-    NRF24L01_Write_Reg(SPI_WRITE_REG + EN_AA, 0x00);     // 无自动应答
-    NRF24L01_Write_Reg(SPI_WRITE_REG + EN_RXADDR, 0x01); // 使能通道 0 接收地址
-    NRF24L01_Write_Reg(SPI_WRITE_REG + SETUP_RETR, 0x1a);
-    NRF24L01_Write_Reg(SPI_WRITE_REG + RF_CH, 1); // RF 通道 1
-    NRF24L01_Write_Reg(SPI_WRITE_REG + RF_SETUP, 0x07);
-    NRF24L01_Write_Reg(SPI_WRITE_REG + NCONFIG, 0x0e); // PWR_UP, CRC16, PRIM_TX
-    Set_NRF24L01_CE;                                   // CE 拉高，等待发送
+    NRF24L01_Write_Reg(SPI_WRITE_REG + EN_AA, 0x00u);      /* 禁用自动应答（单向链路） */
+    NRF24L01_Write_Reg(SPI_WRITE_REG + EN_RXADDR, 0x01u);  /* 使能通道 0 地址 */
+    NRF24L01_Write_Reg(SPI_WRITE_REG + SETUP_RETR, 0x1Au); /* 保留与原版一致配置 */
+    NRF24L01_Write_Reg(SPI_WRITE_REG + RF_CH, 1u);         /* RF 频道 1 */
+    NRF24L01_Write_Reg(SPI_WRITE_REG + RF_SETUP, 0x07u);   /* 1Mbps, 0dBm */
+    NRF24L01_Write_Reg(SPI_WRITE_REG + NCONFIG, 0x0Eu);    /* PWR_UP, CRC16, PRIM_TX */
+    NRF24L01_Write_Reg(FLUSH_TX, 0xFFu);                   /* 清空残留 TX FIFO */
+    NRF24L01_Write_Reg(SPI_WRITE_REG + STATUS, 0x70u);     /* 清除挂起中断位 */
+    Set_NRF24L01_CE;
 }
 
-/* 初始化：IO → 在位检测（带重试上界）→ TX 模式
- * 返回 0=正常，1=自检失败（不再死等，由调用方置故障标志报警） */
+/*
+ * 发送一帧 32 字节数据（带软件超时保护）：
+ *   写 TX FIFO → 拉高 CE 触发发射 → 等待 IRQ 拉低（最多 NRF_TX_TIMEOUT_MS）
+ *   超时时自动拉低 CE、清空 TX FIFO 并清除状态位，防止任务死等卡死。
+ */
+u8 NRF24L01_TxPacket(const u8 *txbuf)
+{
+    u8 state;
+    uint32_t start_ms;
+
+    Clr_NRF24L01_CE;
+    NRF24L01_Write_Buf(WR_TX_PLOAD, txbuf, TX_PLOAD_WIDTH);
+    Set_NRF24L01_CE;
+
+    start_ms = get_ms_tick();
+    while (READ_NRF24L01_IRQ != 0u)
+    {
+        if ((uint32_t)(get_ms_tick() - start_ms) >= NRF_TX_TIMEOUT_MS)
+        {
+            Clr_NRF24L01_CE;
+            NRF24L01_Write_Reg(FLUSH_TX, 0xFFu);
+            NRF24L01_Write_Reg(SPI_WRITE_REG + STATUS, 0x70u);
+            return NRF_TX_TIMEOUT;
+        }
+    }
+
+    state = NRF24L01_Read_Reg(STATUS);
+    NRF24L01_Write_Reg(SPI_WRITE_REG + STATUS, state); /* 清除 TX_DS / MAX_RT */
+
+    if (state & MAX_TX)
+    {
+        NRF24L01_Write_Reg(FLUSH_TX, 0xFFu);
+        return MAX_TX;
+    }
+    if (state & TX_OK)
+    {
+        return TX_OK;
+    }
+    return NRF_TX_ERR;
+}
+
+/* 上电初始化：IO → 带超时重试的在位检测 → 配置 TX 模式（0=正常，1=失败） */
 u8 NRF24L01_init(void)
 {
-    u8 retry = 20; /* 20 次 × 50ms = 1s 等待窗口，覆盖模块上电较慢的情况 */
+    u8 retry = NRF_INIT_RETRY_MAX;
 
     NRF24L01_Configuration();
-    while (retry > 0)
+    while (retry > 0u)
     {
-        if (NRF24L01_Check() == 0)
+        if (NRF24L01_Check() == 0u)
             break;
         retry--;
-        delay_ms(50);
+        delay_ms(NRF_INIT_RETRY_MS);
     }
+
+    if (retry == 0u)
+        return 1u;
+
     TX_Mode();
-    return (retry == 0) ? 1 : 0;
+    return 0u;
 }

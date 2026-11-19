@@ -22,7 +22,6 @@ virtualFolder:
       files:
         - path: src/core/main.c
         - path: src/core/init.c
-        - path: src/core/sys.c
         - path: src/core/delay.c
       folders: []
     - name: LIB
@@ -57,20 +56,27 @@ virtualFolder:
         - path: src/driver/i2c.c
         - path: src/driver/spi.c
         - path: src/driver/tim.c
-        - path: src/driver/usart.c
       folders: []
     - name: BSP
       files:
         - path: src/bsp/nrf24l01.c
         - path: src/bsp/eeprom.c
+        - path: src/bsp/buzzer.c
+        - path: src/bsp/key.c
       folders: []
     - name: Control
       files:
+        - path: src/control/rc_protocol.c
         - path: src/control/remote.c
       folders: []
     - name: App
       files:
+        - path: src/app/app_tasks.c
         - path: src/app/task_rc.c
+        - path: src/app/task_input.c
+        - path: src/app/task_storage.c
+        - path: src/app/task_buzzer.c
+        - path: src/app/task_monitor.c
         - path: src/app/freertos_hooks.c
       folders: []
     - name: FreeRTOS

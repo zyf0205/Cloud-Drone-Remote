@@ -618,11 +618,26 @@
               <FileType>1</FileType>
               <FilePath>.\src\bsp\eeprom.c</FilePath>
             </File>
+            <File>
+              <FileName>buzzer.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\bsp\buzzer.c</FilePath>
+            </File>
+            <File>
+              <FileName>key.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\bsp\key.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
           <GroupName>control</GroupName>
           <Files>
+            <File>
+              <FileName>rc_protocol.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\control\rc_protocol.c</FilePath>
+            </File>
             <File>
               <FileName>remote.c</FileName>
               <FileType>1</FileType>
@@ -634,9 +649,34 @@
           <GroupName>app</GroupName>
           <Files>
             <File>
+              <FileName>app_tasks.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\app\app_tasks.c</FilePath>
+            </File>
+            <File>
               <FileName>task_rc.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\src\app\task_rc.c</FilePath>
+            </File>
+            <File>
+              <FileName>task_input.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\app\task_input.c</FilePath>
+            </File>
+            <File>
+              <FileName>task_storage.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\app\task_storage.c</FilePath>
+            </File>
+            <File>
+              <FileName>task_buzzer.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\app\task_buzzer.c</FilePath>
+            </File>
+            <File>
+              <FileName>task_monitor.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\app\task_monitor.c</FilePath>
             </File>
             <File>
               <FileName>freertos_hooks.c</FileName>

@@ -1,107 +1,114 @@
 # Cloud-Drone-Remote 遥控器
 
-基于 STM32F103C8T6 + FreeRTOS V9.0.0 的四轴飞行器**遥控器端**(发送端),
-与 [Cloud-Drone](../Cloud-Drone)(飞控端)通过 NRF24L01+ 2.4GHz 单向链路通信。
+基于 **STM32F103C8T6 + FreeRTOS V9.0.0** 的四轴飞行器**遥控器端（发送端）**，通过 NRF24L01+ 2.4GHz 单向无线链路与 [Cloud-Drone](../Cloud-Drone)（飞控端）对接。
 
-```
-RCTask(唯一任务, 10ms 周期)
-  ├─ 摇杆 ADC 读取(DMA 循环采集,后台自动刷新)
-  ├─ 通道映射(1000~2000 + EEPROM 微调) → 一阶低通 → 钳位
-  ├─ fault_beep() 启动自检故障蜂鸣提醒
-  ├─ key() 按键状态机(AUX 开关/摇杆微调)
-  └─ NRF_SEND() 组帧(帧头+8通道大端+校验和) → 无线发送
-```
+## FreeRTOS 多任务架构
 
-单任务架构:采集→滤波→组帧→发送是一条纯顺序数据流,
-ADC 由 DMA 后台刷新,一个任务内串行完成全部工作,天然无竞态。
-空闲任务经 Idle Hook 进入 `__WFI` 睡眠(10ms 任务节拍/中断自动唤醒),
-电池供电下空转功耗接近零;上板验证链路与按键功能正常。
+项目采用「**4 业务任务 + 1 监控守护任务**」的解耦设计，严格隔离 100Hz 硬实时无线发包链路与慢速外设（EEPROM 写入、蜂鸣器声型），并遵循**单一硬件所有权原则**（每个外设由唯一任务独占操作）：
 
-## 硬件与外设(详见 `docs/01_硬件平台说明.md`)
-
-- 时钟:**HSI 内部时钟 48MHz**(无外部晶振,8MHz/2 × 12);
-  1ms 毫秒时钟由 TIM3 提供,SysTick 归 FreeRTOS
-- 摇杆:ADC1 DMA 循环采集 4 通道(yaw/thr/pitch/roll)
-- 按键:AUX1~4(PA15/PB11/PC14/PC15)、微调前后左右(PB0/PB1/PA6/PA7),
-  均低电平有效
-- NRF24L01+:软件 SPI,1Mbps/0dBm/RF_CH=1,单向无 ACK
-- AT24C02 EEPROM:软件 I2C,微调值持久化
-- 蜂鸣器 PA12:开机提示/按键反馈/故障报警
-
-## 可靠性设计
-
-| 机制 | 说明 |
-|---|---|
-| IWDG 看门狗 | 任务启动时开狗(约 2.56s),每 10ms 喂一次;挂死 2.6s 内自动复位重启恢复发送,快于飞控端 5s 失联门限,空中链路可自动恢复 |
-| Idle Hook WFI | 空闲时 CPU 进睡眠,事件/中断唤醒,降低电池空耗 |
-| 启动自检超时 | NRF 在位检测最多 20 次(×50ms)、EEPROM 自检最多 20 次,失败不再死等卡死开机 |
-| 故障蜂鸣报警 | NRF 故障=每秒长鸣 0.4s(跳过发送);EEPROM 故障=每秒两短鸣(微调清零,仍可飞行) |
-| 栈溢出/内存失败钩子 | 蜂鸣器长鸣提示 |
-
-## 按键操作
-
-**组合进入**:8 个按键全部按住约 30ms(蜂鸣器静音)→ 松开其余、保留目标键 → 执行对应功能(蜂鸣器短鸣确认)。
-
-| 按键 | 功能 |
-|---|---|
-| AUX1 | 飞控定高开关 |
-| AUX2 | 飞控光流定点开关(需先开定高) |
-| AUX3 | 飞控陀螺校准触发(未解锁+油门最低时) |
-| AUX4 | 预留 |
-| 左/右微调 | Roll 中位 ∓5(限 ±250),即时写 EEPROM |
-| 前/后微调 | Pitch 中位 ∓5,同上 |
-
-微调用于补偿摇杆机械中位偏差:悬停往一边漂时微调对应方向,断电不丢。
-
-## 发送帧格式(与飞控端严格一致)
-
-```
-字节:  0    1    2    3    4..19             20..30   31
-      0xAA 0xAF 0x03 0x1B  8 通道大端(2B/个)  保留 0   前 31 字节求和校验
-通道顺序: roll pitch thr yaw AUX1 AUX2 AUX3 AUX4(量程 1000~2000)
+```text
+  Task_RC_Tx (Prio 4, 10ms) ──► ADC DMA 快照 → 映射/滤波/钳位 → 32B 组帧 → NRF24L01+ 发送
+         │                               ▲
+         │ 心跳位(TaskNotify)            │ 临界区快照(AUX/Trim)
+         ▼                               │
+  Task_Monitor (Prio 2, 500ms) ◄── Task_Input (Prio 3, 20ms) ──► 8 路单键去抖边沿状态机
+         │                           │               │
+         ▼                           │ Overwrite     │ QueueSend
+     IWDG 喂狗                       ▼               ▼
+     (2.56s 超时)           Task_Storage (Prio 2)   Task_Buzzer (Prio 1)
+                            异步写 AT24C02 + 校验   按键音 / 限幅音 / 故障报警
 ```
 
-10ms 一帧(100Hz),单向无 ACK,链路可靠性由飞控端 5s 失联保护兜底。
-协议参数任何改动必须两端同步,详见 `docs/02_遥控协议说明.md`。
+- **零发包抖动**：EEPROM 页写周期（10ms）在低优先级的 `Task_Storage` 中通过 `vTaskDelay()` 异步完成，彻底不再阻塞 100Hz 无线发送；连续快按微调键由长度 1 的覆写队列自动合并，延长 EEPROM 擦写寿命。
+- **低功耗待机**：`Task_Storage`、`Task_Buzzer` 空闲时阻塞挂起，空闲任务经 Idle Hook 执行 `__WFI()` 睡眠，电池供电空耗极低。
+- **多任务看门狗**：`Task_Monitor` 汇总 `Task_RC_Tx` 与 `Task_Input` 的 Task Notification 心跳位，全部存活才喂 IWDG；任一核心任务挂死均会在 ~2.56s 内复位恢复（快于飞控端 5s 失联门限）。
+
+---
+
+## 硬件与外设速查（详见 `docs/01_硬件平台说明.md`）
+
+- **主控与时钟**：STM32F103C8T6，**内部 HSI PLL 48MHz**（无外部晶振，`8MHz / 2 × 12`）；SysTick 归 FreeRTOS（1kHz），TIM3 提供独立 1kHz 硬件毫秒时钟（`TIM3CLK = 48MHz，PSC = 47，ARR = 999`）。
+- **4 路摇杆**：ADC1 + DMA1_CH1 后台循环采集（`PA0=Yaw`，`PA1=THR`，`PA2=Pitch`，`PA3=Roll`）。
+- **NRF24L01+**：软件 SPI（`PB13/PB14/PB15`），控制脚 `PB12=CSN` / `PA11=CE` / `PA8=IRQ`；1Mbps / 0dBm / `RF_CH=1`，单向无 ACK，带 5ms IRQ 软件超时与连续超时自愈。
+- **AT24C02 EEPROM**：软件 I2C（`PB6=SCL`，`PB7=SDA`），保存 Roll（地址 0）与 Pitch（地址 4）微调值，上电加载带合法范围及步进校验（自动拦下新片 `0xFFFF`）。
+- **蜂鸣器**：`PA12` 推挽输出（高电平响、低电平停），由 `Task_Buzzer` 统一独占控制。
+- **8 路按键**：输入上拉（按下为低），`AUX1~4`（`PA15/PB11/PC14/PC15`）、左右前后微调（`PA6/PA7/PB0/PB1`）。
+
+---
+
+## 按键操作与声光反馈
+
+全部 8 个按键均采用 **20ms 去抖 + 单键按下边沿触发 + 全键松手解锁防连发** 机制：
+
+| 按键 | 引脚 | 功能 | 蜂鸣器反馈 |
+| :--- | :---: | :--- | :--- |
+| **AUX1** | PA15 | 飞控定高开关（1000 ↔ 2000） | 单短鸣 40ms |
+| **AUX2** | PB11 | 飞控光流定点开关（需先开定高） | 单短鸣 40ms |
+| **AUX3** | PC14 | 飞控陀螺校准触发（未解锁 + 最低油门） | 单短鸣 40ms |
+| **AUX4** | PC15 | 预留辅助开关（1000 ↔ 2000） | 单短鸣 40ms |
+| **左 / 右微调** | PA6 / PA7 | Roll 中位 -5 / +5（限幅 ±250），异步落盘 EEPROM | 正常单短鸣 / 触顶双短促 |
+| **前 / 后微调** | PB0 / PB1 | Pitch 中位 -5 / +5（限幅 ±250），异步落盘 EEPROM | 正常单短鸣 / 触顶双短促 |
+
+**系统状态声型**：
+- **上电正常**：短鸣 200ms。
+- **NRF 故障（禁止起飞）**：每秒 1 长鸣（400ms 响 / 600ms 停），同时停止无线发送。
+- **EEPROM 故障（仍可飞行）**：每秒 2 短鸣（100ms 响 / 100ms 停 / 100ms 响 / 700ms 停），微调归零且禁用写入。
+- **栈溢出 / 堆分配失败**：立即关中断并蜂鸣器长鸣告警。
+
+---
+
+## 无线帧格式（与飞控端严格兼容）
+
+```text
+字节偏移:  0    1    2    3    4..19              20..30    31
+内容:     0xAA 0xAF 0x03 0x1B  8 通道大端(2B/个)   固定 0x00  前 31 字节求和低 8 位
+通道顺序:  roll, pitch, thr, yaw, AUX1, AUX2, AUX3, AUX4（量程 1000~2000）
+```
+
+100Hz（10ms/帧）单向发送；油门通道保留 `RC_THR_SCALE = 0.20f`（配合飞控端定高死区上限 1750，切勿改为 `0.25f`）。完整协议与联调清单见 `docs/02_遥控协议说明.md`。
+
+---
 
 ## 目录结构
 
-```
+```text
 Cloud-Drone-Remote/
 ├── src/
-│   ├── app/       FreeRTOS 任务层(遥控任务、错误钩子)
-│   ├── bsp/       NRF24L01、AT24C02 EEPROM
-│   ├── control/   遥控核心逻辑(采集/滤波/按键/组帧)
-│   ├── core/      main、初始化、毫秒时钟、蜂鸣器
-│   ├── driver/    软件外设驱动(ADC DMA、I2C、SPI、TIM)
-│   ├── include/   全局类型与声明
-│   ├── FreeRTOS/  V9.0.0 内核(RVDS/ARM_CM3 移植)
-│   ├── Lib/       STM32 标准外设库
+│   ├── app/       FreeRTOS 任务层（app_tasks, task_rc, task_input, task_storage, task_buzzer, task_monitor, hooks）
+│   ├── control/   遥控业务层（rc_protocol 纯算法与组帧，remote 线程安全状态中心）
+│   ├── bsp/       板级器件驱动（nrf24l01, eeprom, key, buzzer）
+│   ├── driver/    底层外设驱动（adc DMA, i2c, spi, tim）
+│   ├── core/      启动入口（main, init, delay, sys）
+│   ├── include/   全局共享类型与汇总头（all_data.h, all_define.h）
+│   ├── FreeRTOS/  FreeRTOS V9.0.0 内核与 FreeRTOSConfig.h
+│   ├── Lib/       STM32F10x 标准外设库
 │   └── StartUp/   启动文件与 CMSIS
-├── docs/          硬件平台说明、遥控协议说明
-└── remote.uvprojx
+├── docs/
+│   ├── 01_硬件平台说明.md
+│   ├── 02_遥控协议说明.md
+│   └── 03_FreeRTOS架构与代码导读.md
+├── remote.uvprojx
+└── .eide/eide.yml
 ```
+
+---
 
 ## 编译与烧录
 
+WSL2 / Windows 下调用 Keil MDK-ARM AC5 构建：
+
 ```bash
-D:\Keil_v5\UV4\UV4.exe -j0 -b "D:\_study\projects\_MyProject\Drone\Cloud-Drone-Remote\remote.uvprojx" -o "D:\_study\projects\_MyProject\Drone\Cloud-Drone-Remote\build\logs\build.log"
+/mnt/d/Keil_v5/UV4/UV4.exe -j0 -b "D:\_study\projects\_MyProject\Drone\Cloud-Drone-Remote\remote.uvprojx" -o "D:\_study\projects\_MyProject\Drone\Cloud-Drone-Remote\build\logs\build.log"
 ```
 
-成功标志:日志末尾 `0 Error(s), 0 Warning(s)`;产物 `build/keil/remote.hex`。
-代码风格统一 `.clang-format`(与飞控端一致)。
+- 成功标志：`build/logs/build.log` 末尾为 `0 Error(s), 0 Warning(s)`。
+- 烧录产物：`build/keil/remote.hex`（支持 J-Link / SWD 下载，`.eide/eide.yml` 亦已同步）。
+- 代码风格：严格遵循 `.clang-format`（4 空格、无 Tab、Allman 大括号）。
 
-## 常见问题
+---
 
-| 现象 | 处理 |
-|---|---|
-| 上电后每秒长鸣 | NRF 模块不在位/自检失败,检查供电与接线 |
-| 上电后每秒两短鸣 | EEPROM 异常,微调不可用(中位回出厂状态),仍可飞行 |
-| 飞控收不到信号 | 两端 RF 参数必须一致(RF_CH=1);查 NRF 天线与 3.3V 供电 |
-| 微调不生效 | 微调的是摇杆中位,飞控端需重新解锁后应用到期望角 |
-| 摇杆某通道跳动 | ADC 供电/接地干扰;代码已含一阶低通+钳位 |
+## 文档导航
 
-## 延伸阅读
-
-飞控+遥控器的整体架构(任务/中断优先级、三条数据链、控制权属主规则、
-扩展指南)见飞控端 [`Cloud-Drone/docs/03_代码导读.md`](../Cloud-Drone/docs/03_代码导读.md)。
+- [`docs/01_硬件平台说明.md`](docs/01_硬件平台说明.md) — MCU 时钟树、完整引脚表、外设配置与中断优先级规划
+- [`docs/02_遥控协议说明.md`](docs/02_遥控协议说明.md) — NRF24L01+ 链路参数、32 字节帧格式、油门定高约束与联调核对清单
+- [`docs/03_FreeRTOS架构与代码导读.md`](docs/03_FreeRTOS架构与代码导读.md) — 5 任务优先级设计、任务间通信、单一所有权、看门狗监控与二次开发扩展指南
