@@ -16,8 +16,4 @@
 #define BEEP_ON  (GPIOA->BSRR = GPIO_Pin_12)
 #define BEEP_OFF (GPIOA->BRR = GPIO_Pin_12)
 
-/* 兼容旧代码命名别名 */
-#define BEEP_H   BEEP_ON
-#define BEEP_L   BEEP_OFF
-
 #endif /* __SYS_H */

@@ -168,11 +168,10 @@ static uint8_t I2c_ReadByte(void)
     return byte;
 }
 
-/* 向设备指定寄存器连续写入定长字节 */
-int8_t IIC_Write_Bytes(uint8_t addr, uint8_t reg, const uint8_t *data, uint8_t len)
+/* 起始条件 + 器件地址 + 寄存器地址，供读写两条路径共用。
+ * 任一步无应答都会发停止条件收尾，避免总线被遗留在半途。 */
+static int8_t I2c_BeginReg(uint8_t addr, uint8_t reg)
 {
-    uint8_t i;
-
     if (I2c_Start() == I2C_ERR)
         return I2C_ERR;
 
@@ -189,6 +188,17 @@ int8_t IIC_Write_Bytes(uint8_t addr, uint8_t reg, const uint8_t *data, uint8_t l
         I2c_Stop();
         return I2C_ERR;
     }
+
+    return I2C_OK;
+}
+
+/* 向设备指定寄存器连续写入定长字节 */
+int8_t IIC_Write_Bytes(uint8_t addr, uint8_t reg, const uint8_t *data, uint8_t len)
+{
+    uint8_t i;
+
+    if (I2c_BeginReg(addr, reg) == I2C_ERR)
+        return I2C_ERR;
 
     for (i = 0; i < len; i++)
     {
@@ -204,45 +214,6 @@ int8_t IIC_Write_Bytes(uint8_t addr, uint8_t reg, const uint8_t *data, uint8_t l
     return I2C_OK;
 }
 
-/* 读取设备指定寄存器 1 字节 */
-int8_t IIC_Read_One_Byte(uint8_t addr, uint8_t reg)
-{
-    uint8_t receive = 0;
-
-    if (I2c_Start() == I2C_ERR)
-        return I2C_ERR;
-
-    I2c_SendByte(addr);
-    if (I2c_WaitAck() == I2C_ERR)
-    {
-        I2c_Stop();
-        return I2C_ERR;
-    }
-
-    I2c_SendByte(reg);
-    if (I2c_WaitAck() == I2C_ERR)
-    {
-        I2c_Stop();
-        return I2C_ERR;
-    }
-
-    I2c_Stop();
-    if (I2c_Start() == I2C_ERR)
-        return I2C_ERR;
-
-    I2c_SendByte((uint8_t)(addr + 1u));
-    if (I2c_WaitAck() == I2C_ERR)
-    {
-        I2c_Stop();
-        return I2C_ERR;
-    }
-
-    receive = I2c_ReadByte();
-    I2c_NoAck();
-    I2c_Stop();
-    return (int8_t)receive;
-}
-
 /* 向设备指定寄存器写入 1 字节 */
 int8_t IIC_Write_One_Byte(uint8_t addr, uint8_t reg, uint8_t data)
 {
@@ -252,22 +223,8 @@ int8_t IIC_Write_One_Byte(uint8_t addr, uint8_t reg, uint8_t data)
 /* 从设备指定寄存器连续读取定长字节 */
 int8_t IIC_read_Bytes(uint8_t addr, uint8_t reg, uint8_t *data, uint8_t len)
 {
-    if (I2c_Start() == I2C_ERR)
+    if (I2c_BeginReg(addr, reg) == I2C_ERR)
         return I2C_ERR;
-
-    I2c_SendByte(addr);
-    if (I2c_WaitAck() == I2C_ERR)
-    {
-        I2c_Stop();
-        return I2C_ERR;
-    }
-
-    I2c_SendByte(reg);
-    if (I2c_WaitAck() == I2C_ERR)
-    {
-        I2c_Stop();
-        return I2C_ERR;
-    }
 
     I2c_Stop();
     if (I2c_Start() == I2C_ERR)

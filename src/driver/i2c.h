@@ -17,10 +17,9 @@
 #define SDA_L    (GPIOB->BRR = GPIO_Pin_7)
 #define SDA_read (GPIOB->IDR & GPIO_Pin_7)
 
-/* 返回值约定：0 表示成功，1 表示失败（IIC_Read_One_Byte 成功返回读到的字节） */
+/* 返回值约定：0 表示成功，1 表示失败 */
 extern void IIC_Init(void);
 extern int8_t IIC_Write_One_Byte(uint8_t addr, uint8_t reg, uint8_t data);
-extern int8_t IIC_Read_One_Byte(uint8_t addr, uint8_t reg);
 extern int8_t IIC_Write_Bytes(uint8_t addr, uint8_t reg, const uint8_t *data, uint8_t len);
 extern int8_t IIC_read_Bytes(uint8_t addr, uint8_t reg, uint8_t *data, uint8_t len);
 

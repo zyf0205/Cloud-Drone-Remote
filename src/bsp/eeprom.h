@@ -19,8 +19,4 @@ extern uint8_t test_AT24C02(void);
 extern uint8_t EEPROM_ReadI16(uint8_t addr, int16_t *out_val);
 extern uint8_t EEPROM_WriteI16Raw(uint8_t addr, int16_t val);
 
-/* 兼容旧版读写接口（仅用于调度器启动前或简单调用） */
-extern uint16_t read_AT24C02(uint8_t addr);
-extern void write_AT24C02(uint8_t addr, uint16_t data);
-
 #endif /* _AT24C02_H_ */

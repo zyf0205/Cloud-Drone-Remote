@@ -58,7 +58,7 @@ void Task_RC_Tx(void *param)
                     }
                     else
                     {
-                        g_boot_fault |= FAULT_NRF; /* 模块已离线，停发并触发故障报警 */
+                        App_SetBootFault(FAULT_NRF); /* 模块已离线，停发并触发故障报警 */
                     }
                 }
             }

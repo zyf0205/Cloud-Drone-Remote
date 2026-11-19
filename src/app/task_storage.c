@@ -56,7 +56,7 @@ void Task_Storage(void *param)
             if (storage_save_axis(ROLL_ADDR_OFFSET, req_trim.roll) == 0u)
                 saved_trim.roll = req_trim.roll;
             else
-                g_boot_fault |= FAULT_EEPROM;
+                App_SetBootFault(FAULT_EEPROM);
         }
 
         if ((g_boot_fault & FAULT_EEPROM) == 0u && req_trim.pitch != saved_trim.pitch)
@@ -64,7 +64,7 @@ void Task_Storage(void *param)
             if (storage_save_axis(PITCH_ADDR_OFFSET, req_trim.pitch) == 0u)
                 saved_trim.pitch = req_trim.pitch;
             else
-                g_boot_fault |= FAULT_EEPROM;
+                App_SetBootFault(FAULT_EEPROM);
         }
     }
 }

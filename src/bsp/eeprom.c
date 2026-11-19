@@ -42,21 +42,6 @@ uint8_t EEPROM_WriteI16Raw(uint8_t addr, int16_t val)
     return (IIC_Write_Bytes(AT24C02_ADDR, addr, buf, 2u) == 0) ? EEPROM_OK : EEPROM_ERR;
 }
 
-/* 兼容旧接口：读 2 字节 */
-uint16_t read_AT24C02(uint8_t addr)
-{
-    int16_t val = 0;
-    (void)EEPROM_ReadI16(addr, &val);
-    return (uint16_t)val;
-}
-
-/* 兼容旧接口：带忙等写 2 字节（仅限调度器启动前） */
-void write_AT24C02(uint8_t addr, uint16_t data)
-{
-    delay_ms(EEPROM_WRITE_WAIT_MS);
-    (void)EEPROM_WriteI16Raw(addr, (int16_t)data);
-}
-
 /* 上电自检：向测试地址写 0xAA 等待写周期后读回比对（返回 0=正常，1=异常） */
 uint8_t test_AT24C02(void)
 {

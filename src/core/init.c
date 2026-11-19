@@ -75,10 +75,12 @@ void ALL_Init(void)
         g_boot_fault |= FAULT_NRF;
     }
 
-    /* 4. AT24C02 EEPROM 自检（失败不卡死，置故障位交由 Task_Buzzer 报警） */
+    /* 4. AT24C02 EEPROM 自检（失败不卡死，置故障位交由 Task_Buzzer 报警）
+     * 循环写法保证“最后一次恰好成功”时不会被误判为故障。 */
     retry = EEPROM_INIT_RETRY_MAX;
-    while (test_AT24C02() != 0u && retry > 0u)
+    while (retry > 0u)
     {
+        if (test_AT24C02() == 0u) break;
         retry--;
     }
     if (retry == 0u)

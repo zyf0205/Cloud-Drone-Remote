@@ -74,3 +74,20 @@ void App_PostBuzzerEvent(buzzer_event_t evt)
         (void)xQueueSend(g_queue_buzzer, &evt, 0u);
     }
 }
+
+/* 线程安全置位系统故障标志
+ * g_boot_fault 是多个任务共享的读-改-写变量（RCTask 置 NRF、StorageTask 置 EEPROM），
+ * 不加保护时低优先级任务的写入会被高优先级任务覆盖，导致故障报警丢失。 */
+void App_SetBootFault(uint8_t mask)
+{
+    if (xTaskGetSchedulerState() == taskSCHEDULER_RUNNING)
+    {
+        taskENTER_CRITICAL();
+        g_boot_fault |= mask;
+        taskEXIT_CRITICAL();
+    }
+    else
+    {
+        g_boot_fault |= mask;
+    }
+}

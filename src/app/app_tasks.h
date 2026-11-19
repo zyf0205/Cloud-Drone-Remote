@@ -82,6 +82,9 @@ extern void App_NotifyHeartbeat(uint32_t task_bit);
 extern void App_PostTrimSave(const rc_trim_t *trim);
 extern void App_PostBuzzerEvent(buzzer_event_t evt);
 
+/* 线程安全置位系统故障标志（多个任务可能同时置位不同故障位） */
+extern void App_SetBootFault(uint8_t mask);
+
 /* 各任务入口函数 */
 extern void Task_RC_Tx(void *param);
 extern void Task_Input(void *param);

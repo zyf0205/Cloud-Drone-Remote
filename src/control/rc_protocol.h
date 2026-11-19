@@ -17,7 +17,6 @@
 
 /* ---------------- 通道量程与映射参数 ---------------- */
 #define RC_CH_MIN       1000u /* 通道输出下限 */
-#define RC_CH_MID       1500u /* 通道中位参考 */
 #define RC_CH_MAX       2000u /* 通道输出上限 */
 #define RC_STICK_SCALE  0.25f /* Roll/Pitch/Yaw 映射系数：ADC(0~4095) → 1000~2023 */
 #define RC_THR_SCALE    0.20f /* 油门缩放系数，满杆约 1819。
